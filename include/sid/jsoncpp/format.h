@@ -36,7 +36,7 @@ LICENSE: END
 #include <string>
 #include <cstdint>
 
-namespace json {
+namespace sid::json {
 
 //! json format type
 enum class format_type : uint8_t {
@@ -78,4 +78,4 @@ struct format
   static format get(const std::string& _value);
 };
 
-} // namespace json
+} // namespace sid::json

@@ -41,7 +41,7 @@ LICENSE: END
 #include <string>
 #include <cstdint>
 
-namespace json {
+namespace sid::json {
 
 /**
  * @struct parser
@@ -101,4 +101,4 @@ private:
   void REMOVE_LEADING_SPACES(const char*& _p);
 };
 
-} // namespace json
+} // namespace sid::json

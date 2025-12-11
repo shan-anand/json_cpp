@@ -40,7 +40,7 @@ LICENSE: END
 #include <cstdint>
 #include "value.h"
 
-namespace json {
+namespace sid::json {
 
 /**
  * @class schema_type
@@ -159,4 +159,4 @@ public:
   static schema parse(const value& _jroot);
 };
 
-} // namespace json
+} // namespace sid::json

@@ -2,6 +2,8 @@
 #include <stdexcept>
 #include <limits>
 
+using namespace sid;
+
 std::string json::to_string(bool _value)
 {
   return _value ? "true" : "false";

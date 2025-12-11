@@ -36,7 +36,7 @@ LICENSE: END
 #include <string>
 #include <cstdint>
 
-namespace json {
+namespace sid::json {
 
 struct parser_stats
 {
@@ -55,4 +55,4 @@ struct parser_stats
   std::string to_str() const;
 };
 
-} // namespace json
+} // namespace sid::json

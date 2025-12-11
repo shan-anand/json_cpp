@@ -41,7 +41,7 @@ LICENSE: END
 #define SPLIT_SKIP_EMPTY    0x02
 #define SPLIT_TRIM_SKIP_EMPTY  (SPLIT_TRIM | SPLIT_SKIP_EMPTY)
 
-namespace json {
+namespace sid::json {
 
 std::string to_string(bool _value);
 bool to_bool(const std::string& _str);
@@ -58,4 +58,4 @@ size_t split(
   const uint32_t            _options = 0
 );
 
-} // namespace json
+} // namespace sid::json

@@ -34,7 +34,7 @@ LICENSE: END
 #include "time_calc.h"
 #include <cstring>
 
-using namespace json;
+using namespace sid::json;
 
 time_calc::time_calc()
 {

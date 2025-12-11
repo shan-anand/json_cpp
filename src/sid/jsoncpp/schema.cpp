@@ -33,8 +33,8 @@ LICENSE: END
 */
 
 /**
- * @file  json.cpp
- * @brief Implementation of json parser and handler
+ * @file  schema.cpp
+ * @brief Implementation of json schema
  */
 #include "jsoncpp/schema.h"
 #include <fstream>
@@ -43,7 +43,7 @@ LICENSE: END
 #include <cstring>
 #include <unistd.h>
 
-using namespace json;
+using namespace sid::json;
 
 namespace local
 {

@@ -44,7 +44,7 @@ LICENSE: END
 #include <ctime>
 #include <unistd.h>
 
-using namespace json;
+using namespace sid::json;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -52,7 +52,7 @@ using namespace json;
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*static*/
-json::format format::get(const std::string& _value)
+format format::get(const std::string& _value)
 {
   format fmt;
 

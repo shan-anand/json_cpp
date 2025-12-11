@@ -5,8 +5,10 @@
 #include <stdexcept>
 
 using namespace std;
+using namespace sid;
+using namespace sid::json;
 
-namespace local
+namespace sid::json::local
 {
   std::string get_file_contents(const std::string& _filePath);
 }

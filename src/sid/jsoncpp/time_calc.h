@@ -36,7 +36,7 @@ LICENSE: END
 #include <ctime>
 #include <cstdint>
 
-namespace json {
+namespace sid::json {
 
 struct time_calc
 {
@@ -55,4 +55,4 @@ private:
   struct timespec p_capture() const;
 };
 
-} // namespace json
+} // namespace sid::json

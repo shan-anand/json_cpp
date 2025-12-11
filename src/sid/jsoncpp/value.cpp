@@ -46,8 +46,9 @@ LICENSE: END
 #include <ctime>
 #include <unistd.h>
 
-using namespace json;
 using namespace std;
+using namespace sid;
+using namespace sid::json;
 
 //extern uint64_t json_gobjects_alloc;
 

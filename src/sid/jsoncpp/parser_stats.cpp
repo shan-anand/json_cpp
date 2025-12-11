@@ -42,7 +42,7 @@ LICENSE: END
 #include <sstream>
 #include <iomanip>
 
-using namespace json;
+using namespace sid::json;
 using namespace std;
 
 //uint64_t json_gobjects_alloc = 0;

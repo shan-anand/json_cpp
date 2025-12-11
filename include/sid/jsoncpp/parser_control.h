@@ -40,7 +40,7 @@ LICENSE: END
 #define JSON_CPP_PARSE_MODE_ALLOW_FLEXIBLE_STRINGS 2
 #define JSON_CPP_PARSE_MODE_ALLOW_NOCASE_VALUES    4
 
-namespace json {
+namespace sid::json {
 
 //! Parser control parameters
 struct parser_control
@@ -93,4 +93,4 @@ struct parser_control
     {}
 };
 
-} // namespace json
+} // namespace sid::json

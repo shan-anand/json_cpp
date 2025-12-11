@@ -33,7 +33,7 @@ LICENSE: END
 */
 
 /**
- * @file  json.cpp
+ * @file  parser.cpp
  * @brief Implementation of json parser and handler
  */
 #include "parser.h"
@@ -46,7 +46,7 @@ LICENSE: END
 #include <ctime>
 #include <unistd.h>
 
-using namespace json;
+using namespace sid::json;
 
 //#define REMOVE_LEADING_SPACES(p)  for (; ::isspace(*p) && *p != '\0'; p++ );
 

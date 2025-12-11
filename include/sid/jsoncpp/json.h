@@ -39,5 +39,5 @@ LICENSE: END
 #include "value.h"
 #include "schema.h"
 
-namespace json {
-} // namespace json
+namespace sid::json {
+} // namespace sid::json

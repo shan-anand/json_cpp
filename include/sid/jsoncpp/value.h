@@ -43,7 +43,7 @@ LICENSE: END
 #include <cstdint>
 #include <stdexcept>
 
-namespace json {
+namespace sid::json {
 
 //! json value type
 enum value_type : uint8_t {
@@ -291,4 +291,4 @@ private:
 
 #pragma pack(pop)
 
-} // namespace json
+} // namespace sid::json
