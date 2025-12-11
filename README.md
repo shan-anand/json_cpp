@@ -1,10 +1,10 @@
-# json_cpp
+# sid-jsoncpp
 
 A high-performance JSON parser and serializer library for C++17 and later.
 
 ## Overview
 
-json_cpp is a fast, lightweight JSON library that provides comprehensive JSON parsing, manipulation, and serialization capabilities. It supports flexible parsing modes, detailed statistics, and multiple output formats.
+sid-jsoncpp is a fast, lightweight JSON library that provides comprehensive JSON parsing, manipulation, and serialization capabilities. It supports flexible parsing modes, detailed statistics, and multiple output formats.
 
 ## Features
 
@@ -21,8 +21,8 @@ json_cpp is a fast, lightweight JSON library that provides comprehensive JSON pa
 ## Directory Structure
 
 ```
-json_cpp/
-├── include/json_cpp/          # Public headers
+sid-jsoncpp/
+├── include/sid/jsoncpp/       # Public headers
 │   ├── json.h                 # Main include file
 │   ├── value.h                # JSON value class
 │   ├── format.h               # Output formatting
@@ -30,7 +30,7 @@ json_cpp/
 │   ├── parser_stats.h         # Parsing statistics
 │   ├── schema.h               # Schema validation
 │   └── utils.h                # Utility functions
-├── src/json_cpp/              # Implementation files
+├── src/sid/jsoncpp/           # Implementation files
 │   ├── format.cpp
 │   ├── parser.cpp
 │   ├── parser_stats.cpp
@@ -78,20 +78,20 @@ cmake ..
 make
 ```
 
-This will create a `libjson_cpp` library that can be linked to your projects.
+This will create a `libsid-jsoncpp` library that can be linked to your projects.
 
 ### Integration
 Add to your CMakeLists.txt:
 ```cmake
-find_library(JSON_CPP_LIB json_cpp)
-target_link_libraries(your_target ${JSON_CPP_LIB})
+find_library(SID_JSONCPP_LIB sid-jsoncpp)
+target_link_libraries(your_target ${SID_JSONCPP_LIB})
 ```
 
 ## Usage Examples
 
 ### Basic Parsing
 ```cpp
-#include <json_cpp/json.h>
+#include <sid/jsoncpp/json.h>
 
 std::string json_str = R"({"name": "John", "age": 30, "active": true})";
 json::value root;
