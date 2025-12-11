@@ -37,7 +37,7 @@ LICENSE: END
  * @brief Implementation of format structure
  */
 #include "json_cpp/format.h"
-#include "json_cpp/utils.h"
+#include "convert.h"
 #include <sstream>
 #include <string>
 #include <iomanip>
@@ -45,8 +45,6 @@ LICENSE: END
 #include <unistd.h>
 
 using namespace json;
-
-//#define REMOVE_LEADING_SPACES(p)  for (; ::isspace(*p) && *p != '\0'; p++ );
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -148,8 +146,8 @@ std::string format::to_str() const
     out << ":indent=" << this->indent;
   }
   if ( this->key_no_quotes )
-    out << ":key_no_quotes=" << json::to_string(this->key_no_quotes);
+    out << ":key_no_quotes=" << json::to_str(this->key_no_quotes);
   if ( this->string_no_quotes )
-    out << ":string_no_quotes=" << json::to_string(this->string_no_quotes);
+    out << ":string_no_quotes=" << json::to_str(this->string_no_quotes);
   return out.str();
 }

@@ -37,8 +37,8 @@ LICENSE: END
  * @brief Implementation of json parser and handler
  */
 #include "json_cpp/value.h"
-#include "json_cpp/utils.h"
 #include "json_cpp/schema.h"
+#include "convert.h"
 #include "parser.h"
 #include <fstream>
 #include <stack>
@@ -49,7 +49,7 @@ LICENSE: END
 using namespace json;
 using namespace std;
 
-uint64_t json_gobjects_alloc = 0;
+extern uint64_t json_gobjects_alloc;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -195,11 +195,7 @@ void value::clear()
 
 value& value::operator=(const value& _obj)
 {
-#if defined(SID_JSON_MAP_OPTIMIZE_FOR_SIZE)
   const bool is_new = ( m_type != _obj.m_type || m_type != value_type::object );
-#else
-  const bool is_new = true;
-#endif
   if ( is_new )
     this->clear();
   m_type = m_data.init(_obj.m_data, is_new, _obj.m_type);
@@ -308,6 +304,24 @@ size_t value::size() const
   throw std::runtime_error(__func__ + std::string("() can be used only for array and object types"));
 }
 
+const value::object_t& value::get_object() const
+{
+  if ( is_object() )
+  {
+    if ( !m_data._map )
+      throw std::runtime_error(__func__ + std::string("() object is null"));
+    return *m_data._map;
+  }
+  throw std::runtime_error(__func__ + std::string("() can be used only for object type"));
+}
+
+const value::array_t& value::get_array() const
+{
+  if ( is_array() )
+    return m_data._arr;
+  throw std::runtime_error(__func__ + std::string("() can be used only for array type"));
+}
+
 int64_t value::get_int64() const
 {
   if ( is_num() )
@@ -348,13 +362,13 @@ std::string value::as_str() const
   if ( is_string() )
     return m_data._str;
   else if ( is_bool() )
-    return json::to_string(m_data._bval);
+    return json::to_str(m_data._bval);
   else if ( is_signed() )
-    return std::to_string(m_data._i64);
+    return json::to_str(m_data._i64);
   else if ( is_unsigned() )
-    return std::to_string(m_data._u64);
+    return json::to_str(m_data._u64);
   else if ( is_double() )
-    return std::to_string(m_data._dbl);
+    return json::to_str(m_data._dbl);
   throw std::runtime_error(
     __func__ + std::string("() can be used only for string, number or boolean types"));
 }
@@ -443,8 +457,8 @@ void value::p_write(std::ostream& _out, const format& _format, uint32_t _level) 
           output += "\\t";
           break;
         case '\\':
-    if ( _input[i+1] != 'u' || _format.string_no_quotes )
-      output += '\\';
+          if ( _input[i+1] != 'u' || _format.string_no_quotes )
+            output += '\\';
           output += ch;
           break;
         case '\"': // Quotation mark
@@ -457,10 +471,10 @@ void value::p_write(std::ostream& _out, const format& _format, uint32_t _level) 
             break;
           */
         default:
-    if ( ch == ',' && _format.string_no_quotes )
-      output += "\\u002c";
-    else
-      output += ch;
+          if ( ch == ',' && _format.string_no_quotes )
+            output += "\\u002c";
+          else
+            output += ch;
           break;
         }
       }
@@ -554,8 +568,8 @@ const value& value::operator[](const size_t _index) const
   if ( ! is_array() )
     throw std::runtime_error(__func__ + std::string(": can be used only for array type"));
   if ( _index >= m_data._arr.size() )
-    throw std::runtime_error(__func__ + std::string(": index(") + std::to_string(_index)
-                         + ") out of range(" + std::to_string(m_data._arr.size()) + ")");
+    throw std::runtime_error(__func__ + std::string(": index(") + json::to_str(_index)
+                         + ") out of range(" + json::to_str(m_data._arr.size()) + ")");
   return m_data._arr[_index];
 }
 
@@ -564,8 +578,8 @@ value& value::operator[](const size_t _index)
   if ( ! is_array() )
     throw std::runtime_error(__func__ + std::string(": can be used only for array type"));
   if ( _index >= m_data._arr.size() )
-    throw std::runtime_error(__func__ + std::string(": index(") + std::to_string(_index)
-                         + ") out of range(" + std::to_string(m_data._arr.size()) + ")");
+    throw std::runtime_error(__func__ + std::string(": index(") + json::to_str(_index)
+                         + ") out of range(" + json::to_str(m_data._arr.size()) + ")");
   return m_data._arr[_index];
 }
 
@@ -640,12 +654,8 @@ value_type value::union_data::clear(const value_type _type)
   switch ( _type )
   {
   case value_type::string: _str.~string(); break;
-  case value_type::array:  _arr.~array(); break;
-#if defined(SID_JSON_MAP_OPTIMIZE_FOR_SIZE)
+  case value_type::array:  _arr.~array_t(); break;
   case value_type::object: delete _map; _map = nullptr; break;
-#else
-  case value_type::object: _map.~object(); break;    
-#endif
   default: break;
   }
   return value_type::null;
@@ -661,8 +671,8 @@ value_type value::union_data::init(const value_type _type/* = value_type::null*/
   case value_type::_unsigned: _u64 = 0; break;
   case value_type::_double:   _dbl = 0; break;
   case value_type::boolean:   _bval = false; break;
-  case value_type::array:     new (&_arr) array; break;
-  case value_type::object:    _map = new object; ++json_gobjects_alloc; break;
+  case value_type::array:     new (&_arr) array_t; break;
+  case value_type::object:    _map = new object_t; ++json_gobjects_alloc; break;
   }
   return _type;
 }
@@ -729,17 +739,17 @@ value_type value::union_data::init(const char* _val)
   return init(value_type::null);
 }
 
-value_type value::union_data::init(const array& _val)
+value_type value::union_data::init(const array_t& _val)
 {
-  new (&_arr) array(_val);
+  new (&_arr) array_t(_val);
   return value_type::array;
 }
 
-value_type value::union_data::init(const object& _val, const bool _new/* = true*/)
+value_type value::union_data::init(const object_t& _val, const bool _new/* = true*/)
 {
   if ( _new )
   {
-    _map = new object(_val);
+    _map = new object_t(_val);
     ++json_gobjects_alloc;
   }
   else
@@ -758,22 +768,14 @@ value_type value::union_data::init(union_data&& _obj, value_type _type) noexcept
   case value_type::_unsigned:       _u64  = _obj._u64;  break;
   case value_type::_double:         _dbl  = _obj._dbl;  break;
   case value_type::boolean:         _bval = _obj._bval; break;
-  case value_type::array:           new (&_arr) array(_obj._arr); break;
-#if defined(SID_JSON_MAP_OPTIMIZE_FOR_SIZE)
+  case value_type::array:           new (&_arr) array_t(_obj._arr); break;
   case value_type::object:          _map  = _obj._map;  break;
-#else
-  case value_type::object:          new (&_map) object(_obj._map); break;
-#endif
   }
   // We've made a copy of the string and array objects.
   // So, we need to clear them from _obj
-#if defined(SID_JSON_MAP_OPTIMIZE_FOR_SIZE)
   // object uses a pointer. We don't want to clear the object type alone
   if ( _type != value_type::object )
     _obj.clear(_type);
-#else
-    _obj.clear(_type);
-#endif
   return _type;
 }
 

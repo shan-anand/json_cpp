@@ -43,15 +43,6 @@ LICENSE: END
 #include <cstdint>
 #include <stdexcept>
 
-// ======================
-// Compiler optimization for the size of the structure
-#define SID_JSON_MAP_OPTIMIZE_FOR_SIZE
-
-#if defined(SID_JSON_MAP_OPTIMIZE_FOR_SIZE)
-//#pragma message "Compiler flag set to optimize json for size"
-#endif
-// ======================
-
 namespace json {
 
 //! json value type
@@ -75,6 +66,11 @@ struct parser;
 class value
 {
   friend class parser;
+public:
+  //! Array type definition
+  using array_t = std::vector<value>;
+  //! Object type definition
+  using object_t = std::map<std::string, value>;
 public:
   /**
    * @fn bool parse(value&                _jout,
@@ -171,6 +167,8 @@ public:
   size_t size() const; // For array and object type
 
   //! get functions
+  const object_t& get_object() const;
+  const array_t& get_array() const;
   int64_t get_int64() const;
   uint64_t get_uint64() const;
   long double get_double() const;
@@ -245,9 +243,6 @@ private:
   void p_set(const value_type _type = value_type::null);
 
 private:
-  using array = std::vector<value>;
-  using object = std::map<std::string, value>;
-
   union union_data
   {
     int64_t     _i64;
@@ -255,8 +250,8 @@ private:
     long double _dbl;
     bool        _bval;
     std::string _str;
-    array       _arr;
-    object*     _map;
+    array_t     _arr;
+    object_t*   _map;
     //! Default constructor
     union_data(const value_type _type = value_type::null);
     //! Copy constructor
@@ -280,14 +275,14 @@ private:
     value_type init(const bool _val);
     value_type init(const std::string& _val);
     value_type init(const char* _val);
-    value_type init(const array& _val);
-    value_type init(const object& _val, const bool _new = true);
+    value_type init(const array_t& _val);
+    value_type init(const object_t& _val, const bool _new = true);
     //! Move initializer routine
     value_type init(union_data&& _obj, value_type _type) noexcept;
 
     union_data& operator=(const union_data& _obj) { *this = std::move(_obj); return *this; }
-    const object& map() const { return (*_map); }
-    object& map() { return (*_map); }
+    const object_t& map() const { return (*_map); }
+    object_t& map() { return (*_map); }
   }; // union union_data
 
   value_type m_type; //! Type of the object

@@ -38,7 +38,7 @@ LICENSE: END
  */
 #include "parser.h"
 #include "time_calc.h"
-#include "json_cpp/utils.h"
+#include "convert.h"
 #include <fstream>
 #include <stack>
 #include <cstring>
@@ -112,10 +112,15 @@ void parser::REMOVE_LEADING_SPACES(const char*& _p)
   do
   {
     for (; is_space(_p) && *_p != '\0'; _p++ );
-    if ( *_p != '/' )
+    if ( *_p != '/' && *_p != '#' )
       return;
 
-    if ( *(_p+1) == '/' )
+    if ( *_p == '#' )
+    {
+      // Shell/Python style comment encountered. Parse until end of line
+      for ( _p++; *_p != '\n' && *_p != '\0'; _p++ );
+    }
+    else if ( *(_p+1) == '/' )
     {
       // C++ style comment encountered. Parse until end of line
       for ( _p++; *_p != '\n' && *_p != '\0'; _p++ );

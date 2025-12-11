@@ -37,7 +37,7 @@ LICENSE: END
  * @brief Implementation of json parser statistics
  */
 #include "json_cpp/schema.h"
-#include "json_cpp/utils.h"
+#include "convert.h"
 #include "parser.h"
 #include <sstream>
 #include <iomanip>
@@ -45,7 +45,7 @@ LICENSE: END
 using namespace json;
 using namespace std;
 
-uint64_t gobjects_alloc = 0;
+uint64_t json_gobjects_alloc = 0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -73,7 +73,7 @@ std::string parser_stats::to_str() const
 {
   std::ostringstream out;
   out << "objects.......: " << json::get_sep(objects)
-      << " (" << json::get_sep(gobjects_alloc) << ")" << endl
+      << " (" << json::get_sep(json_gobjects_alloc) << ")" << endl
       << "arrays........: " << json::get_sep(arrays) << endl
       << "strings.......: " << json::get_sep(strings) << endl
       << "numbers.......: " << json::get_sep(numbers) << endl
