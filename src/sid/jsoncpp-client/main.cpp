@@ -43,6 +43,8 @@ using namespace sid::json;
 
 namespace sid::json::local
 {
+  void show_usage(const char* _progName);
+  std::string trim(const std::string& _str);
   std::string get_file_contents(const std::string& _filePath);
 }
 
@@ -51,19 +53,31 @@ int main(int argc, char* argv[])
   int retVal = 0;
   try
   {
-    if ( argc < 2 )
-      throw std::invalid_argument("Need filename as an argument");
-
     json::parser_input  in;
     std::string param, key, value;
     std::optional<json::format> outputFmt;
     bool showOutput = false;
     bool useMmap = true;
-    for ( int i = 2; i < argc; i++ )
+    std::optional<std::string> filename;
+    // Parse for options and filename
+    // They can be in any order
+    // If filename is missing use stdin
+    for ( int i = 1; i < argc; i++ )
     {
       param = argv[i];
       if ( param[0] != '-' )
-        throw std::invalid_argument("Invalid parameter at position " + std::to_string(i));
+      {
+         // Any argument not starting with '-' is considered as filename
+        // If filename is already set, then throw an error
+        if ( filename.has_value() )
+          throw std::invalid_argument("Filename already set");
+        // This should be the filename (last argument)
+        filename = param;
+        if ( filename.value().empty() )
+          throw std::invalid_argument("Filename cannot be empty");
+        continue;
+      }
+
       size_t pos = param.find('=');
       if ( pos == std::string::npos )
       {
@@ -75,7 +89,13 @@ int main(int argc, char* argv[])
         key = param.substr(0, pos);
         value = param.substr(pos+1);
       }
-      if ( key == "--dup" || key == "--duplicate" )
+      
+      if ( key == "-h" || key == "--help" )
+      {
+        local::show_usage(argv[0]);
+        return 0;
+      }
+      else if ( key == "-d" || key == "--dup" || key == "--duplicate" )
       {
         if ( value == "accept" )
           in.ctrl.dupKey = json::parser_control::dup_key::accept;
@@ -88,13 +108,13 @@ int main(int argc, char* argv[])
         else if ( ! value.empty() )
           throw std::invalid_argument(key + " can only be accept|ignore|append|reject");
       }
-      else if ( key == "--allow-flex-keys" || key == "--allow-flexible-keys" )
+      else if ( key == "-k" || key == "--allow-flex-keys" || key == "--allow-flexible-keys" )
         in.ctrl.mode.allowFlexibleKeys = 1;
-      else if ( key == "--allow-flex-strings" || key == "--allow-flexible-strings" )
+      else if ( key == "-s" || key == "--allow-flex-strings" || key == "--allow-flexible-strings" )
         in.ctrl.mode.allowFlexibleStrings = 1;
-      else if ( key == "--allow-nocase" || key == "--allow-nocase-values" )
+      else if ( key == "-n" || key == "--allow-nocase" || key == "--allow-nocase-values" )
         in.ctrl.mode.allowNocaseValues = 1;
-      else if ( key == "--show-output" )
+      else if ( key == "-o" || key == "--show-output" )
       {
         showOutput = true;
         if ( ! value.empty() )
@@ -105,7 +125,7 @@ int main(int argc, char* argv[])
             outputFmt = json::format::get(value);
         }
       }
-      else if ( key == "--use" )
+      else if ( key == "-u" || key == "--use" )
       {
         if ( value == "mmap" )
           useMmap = true;
@@ -117,18 +137,31 @@ int main(int argc, char* argv[])
       else
         throw std::invalid_argument("Invalid key: " + key);
     } // for loop
+
+    std::string data;
+    if ( !filename.has_value() )
+    {
+      // Get data from stdin
+      cerr << "Reading multiple lines from stdin. End it with Ctrl+D" << endl;
+      for ( std::string line; getline(cin, line); data += line);
+      data = local::trim(data);
+      if ( data.empty() ) return -1;
+    }
  
     // Complete preparing the input object by filling the input type and input
-    if ( useMmap )
+    if ( useMmap && filename.has_value() )
     {
       cerr << "Using mmap for parsing...." << endl;
-      in.set(json::input_type::file_path, argv[1]);
+      in.set(json::input_type::file_path, filename.value());
     }
     else
     {
-      std::string jsonStr = local::get_file_contents(argv[1]);
-      cerr << "Using string data for parsing...." << endl;
-      in.set(json::input_type::data, jsonStr);
+      if ( filename.has_value() )
+      {
+        data = local::get_file_contents(filename.value());
+        cerr << "Using string data for parsing...." << endl;
+      }
+      in.set(json::input_type::data, data);
     }
 
     parser_output out;
@@ -147,6 +180,48 @@ int main(int argc, char* argv[])
   }
   
   return retVal;
+}
+
+void local::show_usage(const char* _progName)
+{
+  cout << "Usage: " << _progName << " [options] [<json-file>]" << endl
+       << "       If <json-file> is omitted, reads from stdin" << endl
+       << "       Tip: It's a good practice to start relative paths with ./" << endl
+       << "            Example: ./myfile.json  ./config/config.json" << endl
+       << "Options: <key>[=<value>]" << endl
+       << "  <key>" << endl
+       << "  -h, --help                     Show this help message" << endl
+       << "  -d, --dup, --duplicate=<mode>  Duplicate key handling (mode: accept|ignore|append|reject)" << endl
+       << "                                 If omitted, it defaults to accept" << endl
+       << "  -k, --allow-flex-keys,         Allow unquoted object keys" << endl
+       << "      --allow-flexible-keys" << endl
+       << "  -s, --allow-flex-strings,      Allow unquoted string values" << endl
+       << "      --allow-flexible-strings" << endl
+       << "  -n, --allow-nocase,            Allow case-insensitive true/false/null" << endl
+       << "      --allow-nocase-values" << endl
+       << "  -o, --show-output[=<format>]   Show parsed JSON output (format: compact|pretty)" << endl
+       << "                                 If <format> is omitted, it defaults to compact" << endl
+       << "  -u, --use=<method>             Parsing method (method: mmap|data|string)" << endl
+       << "                                 Valid only if <filename> is provided, skipped for stdin" << endl
+       << "                                 If omitted, it defaults to mmap" << endl
+       << endl
+       << "Examples:" << endl
+       << "  " << _progName << " ./data.json               # Parse data.json file" << endl
+       << "  " << _progName << " --output ./data.json      # Parse and show output" << endl
+       << "  " << _progName << " -o=pretty ./data.json     # Parse and show pretty output" << endl
+       << "  " << _progName << " -k -s ./data.json         # Allow flexible keys and strings" << endl
+       << "  " << _progName << " --dup=append ./data.json  # Append duplicate keys" << endl
+       << "  echo '{\"key\":\"value\"}' | " << _progName << "     # Parse from stdin" << endl
+       << "  cat ./data.json | " << _progName << " -o # Parse stdin and show output" << endl;
+}
+
+std::string local::trim(const std::string& _str)
+{
+  size_t first = _str.find_first_not_of(" \t\n\r");
+  size_t last = _str.find_last_not_of(" \t\n\r");
+  if (first == std::string::npos || last == std::string::npos)
+    return "";
+  return _str.substr(first, last - first + 1);
 }
 
 std::string local::get_file_contents(const std::string& _filePath)
