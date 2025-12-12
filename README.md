@@ -43,6 +43,8 @@ sid-json/
 │   └── memory_map.h           # Memory mapping utilities
 ├── src/sid/json-client/    # Client application
 │   └── main.cpp               # Example/test client
+├── cmake/                  # CMake utilities
+│   └── cmake_uninstall.cmake.in  # Uninstall script template
 ├── CMakeLists.txt             # Build configuration
 ├── LICENSE                    # MIT License
 └── README.md                  # This file
@@ -106,8 +108,8 @@ make uninstall
 ### Integration
 Add to your CMakeLists.txt:
 ```cmake
-find_library(SID_JSONCPP_LIB sid-json)
-target_link_libraries(your_target ${SID_JSONCPP_LIB})
+find_library(SID_JSON_LIB sid-json)
+target_link_libraries(your_target ${SID_JSON_LIB})
 ```
 
 ## Usage Examples
