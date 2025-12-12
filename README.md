@@ -28,17 +28,21 @@ sid-jsoncpp/
 │   ├── format.h               # Output formatting
 │   ├── parser_control.h       # Parser configuration
 │   ├── parser_stats.h         # Parsing statistics
-│   ├── schema.h               # Schema validation
-│   └── utils.h                # Utility functions
+│   └── schema.h               # Schema validation
 ├── src/sid/jsoncpp/           # Implementation files
 │   ├── format.cpp
 │   ├── parser.cpp
 │   ├── parser_stats.cpp
+│   ├── schema.cpp
 │   ├── time_calc.cpp
 │   ├── utils.cpp
 │   ├── value.cpp
 │   ├── parser.h               # Internal parser header
-│   └── time_calc.h            # Internal timing utilities
+│   ├── time_calc.h            # Internal timing utilities
+│   ├── utils.h                # Internal utility functions
+│   └── memory_map.h           # Memory mapping utilities
+├── src/sid/jsoncpp-client/    # Client application
+│   └── main.cpp               # Example/test client
 ├── CMakeLists.txt             # Build configuration
 ├── LICENSE                    # MIT License
 └── README.md                  # This file

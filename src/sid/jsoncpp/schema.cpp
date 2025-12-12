@@ -144,9 +144,10 @@ schema schema::parse_file(const std::string& _schemaFile)
 /*static*/
 schema schema::parse(const std::string& _schemaData)
 {
-  value jroot;
-  value::parse(jroot, _schemaData);
-  return parse(jroot);
+  parser_input in(json::input_type::data, _schemaData);
+  parser_output out;
+  value::parse(in, out);
+  return parse(out.jroot);
 }
 
 /*static*/

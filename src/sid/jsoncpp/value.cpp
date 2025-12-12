@@ -57,69 +57,26 @@ using namespace sid::json;
 // Implementation of value
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
- * @fn bool parse(value&                _jout,
- *                parser_stats&         _stats,
- *                const std::string&    _value,
- *                const schema&         _schema,
- *                const parser_control& _ctrl = parser_control()
+ * @fn bool parse(const parser_input& _in,
+ *                parser_output&      _out
  *               );
  * @brief Convert the given json string to json object
  *
- * @param _jout [out] json output
- * @param _value [in] Input json string
- * @param _stats [out] Parser statistics
- * @param _schema [in] Json schema to validate against
- * @param _ctrl [in] Parser control flags
+ * @param _in [in] parser input
+ * @param _out [out] parser ouput
  */
 /*static*/
 bool value::parse(
-  value&                _jout,
-  const std::string&    _value,
-  const parser_control& _ctrl /*= parser_control()*/
+  const parser_input& _in,
+  parser_output&      _out
   )
 {
-  parser_stats stats;
-  return value::parse(_jout, stats, _value, _ctrl);
-}
+  parser jparser(_in, _out);
+  //jparser.m_schema = &_in.schema;
+  return jparser.parse();
 
-/*static*/
-bool value::parse(
-  value&                _jout,
-  const std::string&    _value,
-  const schema&         _schema,
-  const parser_control& _ctrl /*= parser_control()*/
-  )
-{
-  parser_stats stats;
-  //jparser.m_schema = &_schema;
-  return value::parse(_jout, stats, _value, _ctrl);
-}
-
-bool value::parse(
-  value&                _jout,
-  parser_stats&         _stats,
-  const std::string&    _value,
-  const parser_control& _ctrl /*= parser_control()*/
-  )
-{
-  parser jparser(_jout, _stats);
-  jparser.m_ctrl = _ctrl;
-  return jparser.parse(_value);
-}
-
-bool value::parse(
-  value&                _jout,
-  parser_stats&         _stats,
-  const std::string&    _value,
-  const schema&         _schema,
-  const parser_control& _ctrl /*= parser_control()*/
-  )
-{
-  parser jparser(_jout, _stats);
-  //jparser.m_schema = &_schema;
-  jparser.m_ctrl = _ctrl;
-  return jparser.parse(_value);
 }
 
 void value::p_set(const value_type _type/* = value_type::null*/)

@@ -39,6 +39,7 @@ LICENSE: END
 #include "parser.h"
 #include "time_calc.h"
 #include "utils.h"
+#include "memory_map.h"
 #include <fstream>
 #include <stack>
 #include <cstring>
@@ -90,9 +91,9 @@ ________________________________________________________________________________
 */
 
 //! Constructor
-parser::parser(value& _jout, parser_stats& _stats)
-  : m_jroot(_jout), m_stats(_stats), m_ctrl(), m_input(), m_schema(nullptr)
-{
+parser::parser(const parser_input& _in, parser_output& _out)
+  : m_in(_in), m_out(_out), m_schema(nullptr)
+{  
 }
 
 //! check for space character
@@ -107,23 +108,28 @@ bool parser::is_space(const char* _p)
   return ::isspace(*_p);
 }
 
+bool parser::is_eof(const char* _p) const
+{
+  return (_p > m_eof);
+}
+
 void parser::REMOVE_LEADING_SPACES(const char*& _p)
 {
   do
   {
-    for (; is_space(_p) && *_p != '\0'; _p++ );
-    if ( *_p != '/' && *_p != '#' )
+    for (; !is_eof(_p) && is_space(_p); _p++ );
+    if ( is_eof(_p) || (*_p != '/' && *_p != '#') )
       return;
 
     if ( *_p == '#' )
     {
       // Shell/Python style comment encountered. Parse until end of line
-      for ( _p++; *_p != '\n' && *_p != '\0'; _p++ );
+      for ( _p++; *_p != '\n' && !is_eof(_p); _p++ );
     }
     else if ( *(_p+1) == '/' )
     {
       // C++ style comment encountered. Parse until end of line
-      for ( _p++; *_p != '\n' && *_p != '\0'; _p++ );
+      for ( _p++; *_p != '\n' && !is_eof(_p); _p++ );
     }
     else if ( *(_p+1) == '*' )
     {
@@ -132,7 +138,7 @@ void parser::REMOVE_LEADING_SPACES(const char*& _p)
       // C style comment encountered. Parse until */
       do
       {
-        for ( _p++; *_p != '*' && *_p != '\0'; _p++ )
+        for ( _p++; *_p != '*' && !is_eof(_p); _p++ )
         {
           if ( *_p == '\n' )
           {
@@ -151,8 +157,41 @@ void parser::REMOVE_LEADING_SPACES(const char*& _p)
   while ( true );
 }
 
-bool parser::parse(const std::string& _value)
+//! parse and convert to json object
+bool parser::parse()
 {
+  auto start = [&]()
+  {
+    m_line.begin = m_p;
+    m_line.count = 1;
+    REMOVE_LEADING_SPACES(m_p);
+    if ( !is_eof(m_p) )
+    {
+      char ch = *m_p;
+      if ( ch == '{' )
+      {
+        parse_object(m_out.jroot);
+        REMOVE_LEADING_SPACES(m_p);
+        if ( !is_eof(m_p) )
+          throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
+                            + " after the root object is closed");
+      }
+      else if ( ch == '[' )
+      {
+        parse_array(m_out.jroot);
+        REMOVE_LEADING_SPACES(m_p);
+        if ( !is_eof(m_p) )
+          throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
+                            + " after the root array is closed");
+      }
+      else
+        throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
+                            + ". Expecting { or [");
+    }
+    else
+      throw std::runtime_error(std::string("End of data reached ") + loc_str() + ". Expecting { or [");
+  };
+
   time_calc tc;
 
   try
@@ -162,47 +201,40 @@ bool parser::parse(const std::string& _value)
 
     tc.start();
 
-    m_jroot.clear();
-    m_stats.clear();
-    // Set the size of the data
-    m_stats.data_size = _value.length();
+    m_out.clear();
 
-    m_input = _value;
-    m_p = m_line.begin = m_input.c_str();
-    m_line.count = 1;
-    REMOVE_LEADING_SPACES(m_p);
-    char ch = *m_p;
-    if ( ch == '{' )
+    switch ( m_in.inputType )
     {
-      parse_object(m_jroot);
-      REMOVE_LEADING_SPACES(m_p);
-      ch = *m_p;
-      if ( ch != '\0' )
-        throw std::runtime_error(std::string("Invalid character [") + ch + "] " + loc_str()
-                           + " after the root object is closed");
+    case input_type::data:
+      {
+        // Set the size of the data
+        m_out.stats.data_size = m_in.input.length();
+        // Set the current position
+        m_p = m_in.input.c_str();
+        m_eof = m_p + m_in.input.length() - 1;
+        start();
+      }
+      break;
+    case input_type::file_path:
+      {
+        memory_map mm(m_in.input);
+        // Set the size of the data
+        m_out.stats.data_size = mm.size();
+        // Set the current position
+        m_p = mm.begin();
+        m_eof = mm.end();
+        start();
+      }
+      break;
     }
-    else if ( ch == '[' )
-    {
-      parse_array(m_jroot);
-      REMOVE_LEADING_SPACES(m_p);
-      ch = *m_p;
-      if ( ch != '\0' )
-        throw std::runtime_error(std::string("Invalid character [") + ch + "] " + loc_str()
-                           + " after the root array is closed");
-    }
-    else if ( ch != '\0' )
-      throw std::runtime_error(std::string("Invalid character [") + ch + "] " + loc_str()
-                           + ". Expecting { or [");
-    else
-      throw std::runtime_error(std::string("End of data reached ") + loc_str() + ". Expecting { or [");
 
     tc.stop();
-    m_stats.time_ms = tc.diff_millisecs();
+    m_out.stats.time_ms = tc.diff_millisecs();
   }
   catch (...)
   {
     tc.stop();
-    m_stats.time_ms = tc.diff_millisecs();
+    m_out.stats.time_ms = tc.diff_millisecs();
     throw;
   }
 
@@ -218,7 +250,7 @@ void parser::parse_object(value& _jobj)
     _jobj.p_set(value_type::object);
 
   m_containerStack.push(value_type::object);
-  m_stats.objects++;
+  m_out.stats.objects++;
   while ( true )
   {
     ++m_p;
@@ -233,11 +265,11 @@ void parser::parse_object(value& _jobj)
     if ( isDuplicateKey )
     {
       // Handle duplicate key scenario
-      if ( m_ctrl.dupKey == parser_control::dup_key::reject )
+      if ( m_in.ctrl.dupKey == parser_control::dup_key::reject )
         throw std::runtime_error("Duplicate key \"" + m_key + "\" encountered");
     }
 
-    m_stats.keys++;
+    m_out.stats.keys++;
     REMOVE_LEADING_SPACES(m_p);
     if ( *m_p != ':' )
       throw std::runtime_error("Expected : " + loc_str());
@@ -248,18 +280,18 @@ void parser::parse_object(value& _jobj)
       parse_value(_jobj[m_key]);
     }
     // Handle duplicate key based on the input mode
-    else if ( m_ctrl.dupKey == parser_control::dup_key::accept )
+    else if ( m_in.ctrl.dupKey == parser_control::dup_key::accept )
     {
       // Accept the value and overwrite it
       parse_value(_jobj[m_key]);
     }
-    else if ( m_ctrl.dupKey == parser_control::dup_key::ignore )
+    else if ( m_in.ctrl.dupKey == parser_control::dup_key::ignore )
     {
       // Parse the value, but ignore it
       value jignore;
       parse_value(jignore);
     }
-    else if ( m_ctrl.dupKey == parser_control::dup_key::append )
+    else if ( m_in.ctrl.dupKey == parser_control::dup_key::append )
     {
       // make it as an array and append the duplicate keys
       if ( ! _jobj[m_key].is_array() )
@@ -293,7 +325,7 @@ void parser::parse_array(value& _jarr)
     _jarr.p_set(value_type::array);
 
   m_containerStack.push(value_type::array);
-  m_stats.arrays++;
+  m_out.stats.arrays++;
   while ( true )
   {
     ++m_p;
@@ -324,7 +356,7 @@ void parser::parse_string(std::string& _str, bool _isKey)
   _str.clear();
   const char chContainer = (m_containerStack.top() == value_type::object)? '}' : ']' ;
   bool hasQuotes = true;
-  if ( ( _isKey && m_ctrl.mode.allowFlexibleKeys ) || ( ! _isKey && m_ctrl.mode.allowFlexibleStrings ) )
+  if ( ( _isKey && m_in.ctrl.mode.allowFlexibleKeys ) || ( ! _isKey && m_in.ctrl.mode.allowFlexibleStrings ) )
     hasQuotes = (*m_p == '\"');
   else if ( *m_p != '\"' )
     throw std::runtime_error("Expected \" " + loc_str() + ", found \"" + std::string(1, *m_p) + "\"");
@@ -449,7 +481,7 @@ void parser::parse_value(value& _jval)
         ;
       else if ( ::strncmp(p_start, "true", len) == 0 )
         _jval = true;
-      else if ( ! m_ctrl.mode.allowNocaseValues )
+      else if ( ! m_in.ctrl.mode.allowNocaseValues )
         found = false;
       else
       {
@@ -465,7 +497,7 @@ void parser::parse_value(value& _jval)
     {
       if ( ::strncmp(p_start, "false", len) == 0 )
         _jval = false;
-      else if ( ! m_ctrl.mode.allowNocaseValues )
+      else if ( ! m_in.ctrl.mode.allowNocaseValues )
         found = false;
       else
       {
@@ -479,7 +511,7 @@ void parser::parse_value(value& _jval)
       found = false;
     if ( ! found )
     {
-      if ( m_ctrl.mode.allowFlexibleStrings )
+      if ( m_in.ctrl.mode.allowFlexibleStrings )
       {
         m_p = p_start;
         m_line = old_line;
@@ -492,13 +524,13 @@ void parser::parse_value(value& _jval)
   }
   // Set the statistics of non-container objects here
   if ( _jval.is_string() )
-    m_stats.strings++;
+    m_out.stats.strings++;
   else if ( _jval.is_num() )
-    m_stats.numbers++;
+    m_out.stats.numbers++;
   else if ( _jval.is_bool() )
-    m_stats.booleans++;
+    m_out.stats.booleans++;
   else if ( _jval.is_null() )
-    m_stats.nulls++;
+    m_out.stats.nulls++;
 
   REMOVE_LEADING_SPACES(m_p);
 }

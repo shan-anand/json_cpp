@@ -49,18 +49,18 @@ namespace sid::json {
  */
 struct parser
 {
-  value&         m_jroot;  //! value output object
-  parser_stats&  m_stats;  //! statistics object
-  parser_control m_ctrl;   //! Parser control flags
-  std::string    m_input;  //! The Json string to be parsed
-  schema*        m_schema; //! Optional schema to validate against
-  std::stack<value_type> m_containerStack; //! Container stack
+  using ContinerStack = std::stack<value_type>;
+
+  const parser_input& m_in;
+  parser_output&      m_out;
+  schema*             m_schema; //! Optional schema to validate against
+  ContinerStack       m_containerStack; //! Container stack
 
   //! constructor
-  parser(value& _jout, parser_stats& _stats);
+  parser(const parser_input& _in, parser_output& _out);
 
-  //! parse the string and convert it to json object
-  bool parse(const std::string& _value);
+  //! parse and convert to json object
+  bool parse();
 
 private:
   struct line_info
@@ -72,6 +72,7 @@ private:
   std::string m_key;
   const char* m_p;
   line_info   m_line;
+  const char* m_eof;
 
   //! get the current location of paring in the string
   inline std::string loc_str(const line_info& line, const char* p) const {
@@ -97,6 +98,8 @@ private:
 
   //! check for space character
   bool is_space(const char* _p);
+  //! are we at end of data
+  bool is_eof(const char* _p) const;
   //! remove leading spaces and comments
   void REMOVE_LEADING_SPACES(const char*& _p);
 };

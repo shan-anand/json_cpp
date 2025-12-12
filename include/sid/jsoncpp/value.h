@@ -51,10 +51,16 @@ enum value_type : uint8_t {
 };
 std::string to_str(const value_type& _type);
 
+enum class input_type : uint8_t { data, file_path };
+
 //! Forward declaration of json schema
 class schema;
 //! Forward declaration of parser (not exposed)
 struct parser;
+//! Forward declaration of parser_input
+struct parser_input;
+//! Forward declaration of parser_output
+struct parser_output;
 
 #pragma pack(push)
 #pragma pack(1)
@@ -72,6 +78,10 @@ public:
   //! Object type definition
   using object_t = std::map<std::string, value>;
 public:
+  static bool parse(
+    const parser_input& _in,
+    parser_output&      _out
+    );
   /**
    * @fn bool parse(value&                _jout,
    *                parser_stats&         _stats,
@@ -290,5 +300,31 @@ private:
 }; // class value
 
 #pragma pack(pop)
+
+struct parser_input
+{
+  input_type     inputType;
+  std::string    input;
+  parser_control ctrl;
+  //schema         schema;
+
+  parser_input() {}
+  parser_input(const input_type _inputType, const std::string& _input, const parser_control& _ctrl = parser_control())
+    : inputType(_inputType), input(_input), ctrl(_ctrl) {}
+
+  void set(const input_type& _inputType, const std::string& _input)
+  {
+    this->inputType = _inputType;
+    this->input = _input;
+  }
+};
+
+struct parser_output
+{
+  value        jroot;
+  parser_stats stats;
+
+  void clear() { jroot.clear(); stats.clear(); }
+};
 
 } // namespace sid::json
