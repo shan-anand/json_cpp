@@ -186,3 +186,39 @@ MIT License - see LICENSE file for details.
 
 Shan Anand (anand.gs@gmail.com)  
 Source: https://github.com/shan-anand
+
+## Client (sid-jsoncpp-client)
+
+The sid-jsoncpp library includes a command-line client application for parsing and validating JSON files.
+
+```
+Usage: sid-jsoncpp-client [options] [<json-file>]
+       If <json-file> is omitted, reads from stdin
+       Tip: It's a good practice to start relative paths with ./
+            Example: ./myfile.json  ./config/config.json
+Options: <key>[=<value>]
+  <key>
+  -h, --help                     Show this help message
+  -d, --dup, --duplicate=<mode>  Duplicate key handling (mode: accept|ignore|append|reject)
+                                 If omitted, it defaults to accept
+  -k, --allow-flex-keys,         Allow unquoted object keys
+      --allow-flexible-keys
+  -s, --allow-flex-strings,      Allow unquoted string values
+      --allow-flexible-strings
+  -n, --allow-nocase,            Allow case-insensitive true/false/null
+      --allow-nocase-values
+  -o, --show-output[=<format>]   Show parsed JSON output (format: compact|pretty)
+                                 If <format> is omitted, it defaults to compact
+  -u, --use=<method>             Parsing method (method: mmap|data|string)
+                                 Valid only if <filename> is provided, skipped for stdin
+                                 If omitted, it defaults to mmap
+
+Examples:
+  sid-jsoncpp-client ./data.json               # Parse data.json file
+  sid-jsoncpp-client --output ./data.json      # Parse and show output
+  sid-jsoncpp-client -o=pretty ./data.json     # Parse and show pretty output
+  sid-jsoncpp-client -k -s ./data.json         # Allow flexible keys and strings
+  sid-jsoncpp-client --dup=append ./data.json  # Append duplicate keys
+  echo '{"key":"value"}' | sid-jsoncpp-client     # Parse from stdin
+  cat ./data.json | sid-jsoncpp-client -o # Parse stdin and show output
+```
