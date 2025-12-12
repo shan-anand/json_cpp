@@ -33,10 +33,10 @@ LICENSE: END
 
 #pragma once
 
-#include "jsoncpp/value.h"
-#include "jsoncpp/schema.h"
-#include "jsoncpp/parser_stats.h"
-#include "jsoncpp/parser_control.h"
+#include "json/value.h"
+#include "json/schema.h"
+#include "json/parser_stats.h"
+#include "json/parser_control.h"
 #include <stack>
 #include <string>
 #include <cstdint>

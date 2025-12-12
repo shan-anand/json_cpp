@@ -1,10 +1,10 @@
-# sid-jsoncpp
+# sid-json
 
 A high-performance JSON parser and serializer library for C++17 and later.
 
 ## Overview
 
-sid-jsoncpp is a fast, lightweight JSON library that provides comprehensive JSON parsing, manipulation, and serialization capabilities. It supports flexible parsing modes, detailed statistics, and multiple output formats.
+sid-json is a fast, lightweight JSON library that provides comprehensive JSON parsing, manipulation, and serialization capabilities. It supports flexible parsing modes, detailed statistics, and multiple output formats.
 
 ## Features
 
@@ -21,15 +21,15 @@ sid-jsoncpp is a fast, lightweight JSON library that provides comprehensive JSON
 ## Directory Structure
 
 ```
-sid-jsoncpp/
-├── include/sid/jsoncpp/       # Public headers
+sid-json/
+├── include/sid/json/       # Public headers
 │   ├── json.h                 # Main include file
 │   ├── value.h                # JSON value class
 │   ├── format.h               # Output formatting
 │   ├── parser_control.h       # Parser configuration
 │   ├── parser_stats.h         # Parsing statistics
 │   └── schema.h               # Schema validation
-├── src/sid/jsoncpp/           # Implementation files
+├── src/sid/json/           # Implementation files
 │   ├── format.cpp
 │   ├── parser.cpp
 │   ├── parser_stats.cpp
@@ -41,7 +41,7 @@ sid-jsoncpp/
 │   ├── time_calc.h            # Internal timing utilities
 │   ├── utils.h                # Internal utility functions
 │   └── memory_map.h           # Memory mapping utilities
-├── src/sid/jsoncpp-client/    # Client application
+├── src/sid/json-client/    # Client application
 │   └── main.cpp               # Example/test client
 ├── CMakeLists.txt             # Build configuration
 ├── LICENSE                    # MIT License
@@ -82,12 +82,12 @@ cmake ..
 make
 ```
 
-This will create a `libsid-jsoncpp` library that can be linked to your projects.
+This will create a `libsid-json` library that can be linked to your projects.
 
 ### Integration
 Add to your CMakeLists.txt:
 ```cmake
-find_library(SID_JSONCPP_LIB sid-jsoncpp)
+find_library(SID_JSONCPP_LIB sid-json)
 target_link_libraries(your_target ${SID_JSONCPP_LIB})
 ```
 
@@ -95,7 +95,7 @@ target_link_libraries(your_target ${SID_JSONCPP_LIB})
 
 ### Basic Parsing
 ```cpp
-#include <sid/jsoncpp/json.h>
+#include <sid/json/json.h>
 
 std::string json_str = R"({"name": "John", "age": 30, "active": true})";
 json::value root;
@@ -178,12 +178,12 @@ The library is optimized for performance with:
 - Fast numeric parsing
 - Built-in timing measurements
 
-## Client (sid-jsoncpp-client)
+## Client (sid-json-client)
 
-The sid-jsoncpp library includes a command-line client application for parsing and validating JSON files.
+The sid-json library includes a command-line client application for parsing and validating JSON files.
 
 ```
-Usage: sid-jsoncpp-client [options] [<json-file>]
+Usage: sid-json-client [options] [<json-file>]
        If <json-file> is omitted, reads from stdin
        Tip: It's a good practice to start relative paths with ./
             Example: ./myfile.json  ./config/config.json
@@ -205,13 +205,13 @@ Options: <key>[=<value>]
                                  If omitted, it defaults to mmap
 
 Examples:
-  sid-jsoncpp-client ./data.json               # Parse data.json file
-  sid-jsoncpp-client --output ./data.json      # Parse and show output
-  sid-jsoncpp-client -o=pretty ./data.json     # Parse and show pretty output
-  sid-jsoncpp-client -k -s ./data.json         # Allow flexible keys and strings
-  sid-jsoncpp-client --dup=append ./data.json  # Append duplicate keys
-  echo '{"key":"value"}' | sid-jsoncpp-client     # Parse from stdin
-  cat ./data.json | sid-jsoncpp-client -o # Parse stdin and show output
+  sid-json-client ./data.json               # Parse data.json file
+  sid-json-client --output ./data.json      # Parse and show output
+  sid-json-client -o=pretty ./data.json     # Parse and show pretty output
+  sid-json-client -k -s ./data.json         # Allow flexible keys and strings
+  sid-json-client --dup=append ./data.json  # Append duplicate keys
+  echo '{"key":"value"}' | sid-json-client     # Parse from stdin
+  cat ./data.json | sid-json-client -o # Parse stdin and show output
 ```
 
 ## License
@@ -221,4 +221,4 @@ MIT License - see LICENSE file for details.
 ## Author
 
 Shan Anand (anand.gs@gmail.com)  
-Source: https://github.com/shan-anand/sid-jsoncpp
+Source: https://github.com/shan-anand/sid-json

@@ -36,7 +36,7 @@ LICENSE: END
  * @file  parser_stats.cpp
  * @brief Implementation of json parser statistics
  */
-#include "jsoncpp/schema.h"
+#include "json/schema.h"
 #include "utils.h"
 #include "parser.h"
 #include <sstream>

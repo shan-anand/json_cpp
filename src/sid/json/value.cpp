@@ -36,8 +36,8 @@ LICENSE: END
  * @file  json.cpp
  * @brief Implementation of json parser and handler
  */
-#include "jsoncpp/value.h"
-#include "jsoncpp/schema.h"
+#include "json/value.h"
+#include "json/schema.h"
 #include "utils.h"
 #include "parser.h"
 #include <fstream>

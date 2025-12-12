@@ -36,7 +36,7 @@ LICENSE: END
  * @file  schema.cpp
  * @brief Implementation of json schema
  */
-#include "jsoncpp/schema.h"
+#include "json/schema.h"
 #include <fstream>
 #include <stack>
 #include <iomanip>
