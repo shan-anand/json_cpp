@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
       if ( ::isatty(STDIN_FILENO) )
       {
         // Interactive mode - show instruction
-        cerr << "Reading multiple lines from stdin. End it with Ctrl+D" << endl;
+        cerr << "Reading multiple lines, end it with Ctrl+D" << endl;
       }
       // Get data from stdin
       for ( std::string line; getline(cin, line); data += line);
