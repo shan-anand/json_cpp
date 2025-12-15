@@ -204,13 +204,15 @@ The library is optimized for performance with:
 The sid-json library includes a command-line client application for parsing and validating JSON files.
 
 ```
-Usage: sid-json-client [options] [<json-file>]
-       If <json-file> is omitted, reads from stdin
+Usage: sid-json-client [options] [<json-file>|--stdin]
+       Interactive mode: Requires either <json-file> or --stdin
+       Pipe mode: Automatically reads from stdin
        Tip: It's a good practice to start relative paths with ./
             Example: ./myfile.json  ./config/config.json
 Options: <key>[=<value>]
   <key>
   -h, --help                     Show this help message
+      --stdin                    Read from stdin (interactive mode only)
   -d, --dup, --duplicate=<mode>  Duplicate key handling (mode: accept|ignore|append|reject)
                                  If omitted, it defaults to accept
   -k, --allow-flex-keys,         Allow unquoted object keys
@@ -227,12 +229,12 @@ Options: <key>[=<value>]
 
 Examples:
   sid-json-client ./data.json               # Parse data.json file
-  sid-json-client --output ./data.json      # Parse and show output
+  sid-json-client --stdin                   # Read from stdin interactively
   sid-json-client -o=pretty ./data.json     # Parse and show pretty output
   sid-json-client -k -s ./data.json         # Allow flexible keys and strings
   sid-json-client --dup=append ./data.json  # Append duplicate keys
-  echo '{"key":"value"}' | sid-json-client     # Parse from stdin
-  cat ./data.json | sid-json-client -o # Parse stdin and show output
+  echo '{"key":"value"}' | sid-json-client     # Parse from stdin (pipe)
+  cat ./data.json | sid-json-client -o # Parse stdin and show output (pipe)
 ```
 
 ## License

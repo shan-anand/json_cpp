@@ -52,11 +52,19 @@ namespace sid::json::local
 int main(int argc, char* argv[])
 {
   int retVal = 0;
+  const bool isInteractiveMode = ::isatty(STDIN_FILENO) != 0;
+
+  if ( isInteractiveMode && argc < 2 )
+  {
+    local::show_usage(argv[0]);
+    return 1;
+  }
   try
   {
     json::parser_input  in;
     std::string param, key, value;
     std::optional<json::format> outputFmt;
+    bool isStdin = false;
     bool showOutput = false;
     bool useMmap = true;
     std::optional<std::string> filename;
@@ -90,11 +98,14 @@ int main(int argc, char* argv[])
         key = param.substr(0, pos);
         value = param.substr(pos+1);
       }
-      
-      if ( key == "-h" || key == "--help" )
+      if ( key == "--stdin")
+      {
+        isStdin = true;
+      }
+      else if ( key == "-h" || key == "--help" )
       {
         local::show_usage(argv[0]);
-        return 0;
+        return 1;
       }
       else if ( key == "-d" || key == "--dup" || key == "--duplicate" )
       {
@@ -139,11 +150,36 @@ int main(int argc, char* argv[])
         throw std::invalid_argument("Invalid key: " + key);
     } // for loop
 
+    if ( isInteractiveMode )
+    {
+      if ( isStdin && filename.has_value() )
+        throw std::invalid_argument("Cannot use --stdin with filename");
+      if ( !isStdin && !filename.has_value() )
+        throw std::invalid_argument("Missing filename or --stdin");
+    }
+    else if ( isStdin || filename.has_value() )
+     throw std::invalid_argument("Cannot use filename or --stdin with non-interactive mode");
+
     std::string data;
-    if ( !filename.has_value() )
+    if ( filename.has_value() )
+    {
+      // Complete preparing the input object by filling the input type and input
+      if ( useMmap )
+      {
+        cerr << "Using mmap for parsing...." << endl;
+        in.set(json::input_type::file_path, filename.value());
+      }
+      else
+      {
+        data = local::get_file_contents(filename.value());
+        cerr << "Using string data for parsing...." << endl;
+        in.set(json::input_type::data, data);
+      }
+    }
+    else
     {
       // Check if stdin is from terminal (interactive) or pipe
-      if ( ::isatty(STDIN_FILENO) )
+      if ( isInteractiveMode )
       {
         // Interactive mode - show instruction
         cerr << "Reading multiple lines, end it with Ctrl+D" << endl;
@@ -152,21 +188,6 @@ int main(int argc, char* argv[])
       for ( std::string line; getline(cin, line); data += line);
       data = local::trim(data);
       if ( data.empty() ) return -1;
-    }
- 
-    // Complete preparing the input object by filling the input type and input
-    if ( useMmap && filename.has_value() )
-    {
-      cerr << "Using mmap for parsing...." << endl;
-      in.set(json::input_type::file_path, filename.value());
-    }
-    else
-    {
-      if ( filename.has_value() )
-      {
-        data = local::get_file_contents(filename.value());
-        cerr << "Using string data for parsing...." << endl;
-      }
       in.set(json::input_type::data, data);
     }
 
@@ -190,13 +211,15 @@ int main(int argc, char* argv[])
 
 void local::show_usage(const char* _progName)
 {
-  cout << "Usage: " << _progName << " [options] [<json-file>]" << endl
-       << "       If <json-file> is omitted, reads from stdin" << endl
+  cout << "Usage: " << _progName << " [options] [<json-file>|--stdin]" << endl
+       << "       Interactive mode: Requires either <json-file> or --stdin" << endl
+       << "       Pipe mode: Automatically reads from stdin" << endl
        << "       Tip: It's a good practice to start relative paths with ./" << endl
        << "            Example: ./myfile.json  ./config/config.json" << endl
        << "Options: <key>[=<value>]" << endl
        << "  <key>" << endl
        << "  -h, --help                     Show this help message" << endl
+       << "      --stdin                    Read from stdin (interactive mode only)" << endl
        << "  -d, --dup, --duplicate=<mode>  Duplicate key handling (mode: accept|ignore|append|reject)" << endl
        << "                                 If omitted, it defaults to accept" << endl
        << "  -k, --allow-flex-keys,         Allow unquoted object keys" << endl
@@ -213,12 +236,12 @@ void local::show_usage(const char* _progName)
        << endl
        << "Examples:" << endl
        << "  " << _progName << " ./data.json               # Parse data.json file" << endl
-       << "  " << _progName << " --output ./data.json      # Parse and show output" << endl
+       << "  " << _progName << " --stdin                   # Read from stdin interactively" << endl
        << "  " << _progName << " -o=pretty ./data.json     # Parse and show pretty output" << endl
        << "  " << _progName << " -k -s ./data.json         # Allow flexible keys and strings" << endl
        << "  " << _progName << " --dup=append ./data.json  # Append duplicate keys" << endl
-       << "  echo '{\"key\":\"value\"}' | " << _progName << "     # Parse from stdin" << endl
-       << "  cat ./data.json | " << _progName << " -o # Parse stdin and show output" << endl;
+       << "  echo '{\"key\":\"value\"}' | " << _progName << "     # Parse from stdin (pipe)" << endl
+       << "  cat ./data.json | " << _progName << " -o # Parse stdin and show output (pipe)" << endl;
 }
 
 std::string local::trim(const std::string& _str)
