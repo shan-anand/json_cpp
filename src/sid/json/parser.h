@@ -101,7 +101,7 @@ private:
   //! are we at end of data
   bool is_eof(const char* _p) const;
   //! remove leading spaces and comments
-  void REMOVE_LEADING_SPACES(const char*& _p);
+  void skip_leading_spaces(const char*& _p);
 };
 
 } // namespace sid::json

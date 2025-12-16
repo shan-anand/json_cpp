@@ -49,7 +49,7 @@ LICENSE: END
 
 using namespace sid::json;
 
-//#define REMOVE_LEADING_SPACES(p)  for (; ::isspace(*p) && *p != '\0'; p++ );
+//#define skip_leading_spaces(p)  for (; ::isspace(*p) && *p != '\0'; p++ );
 
 //extern uint64_t json_gobjects_alloc;
 
@@ -113,7 +113,7 @@ bool parser::is_eof(const char* _p) const
   return (_p > m_eof);
 }
 
-void parser::REMOVE_LEADING_SPACES(const char*& _p)
+void parser::skip_leading_spaces(const char*& _p)
 {
   do
   {
@@ -164,14 +164,14 @@ bool parser::parse()
   {
     m_line.begin = m_p;
     m_line.count = 1;
-    REMOVE_LEADING_SPACES(m_p);
+    skip_leading_spaces(m_p);
     if ( !is_eof(m_p) )
     {
       char ch = *m_p;
       if ( ch == '{' )
       {
         parse_object(m_out.jroot);
-        REMOVE_LEADING_SPACES(m_p);
+        skip_leading_spaces(m_p);
         if ( !is_eof(m_p) )
           throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
                             + " after the root object is closed");
@@ -179,7 +179,7 @@ bool parser::parse()
       else if ( ch == '[' )
       {
         parse_array(m_out.jroot);
-        REMOVE_LEADING_SPACES(m_p);
+        skip_leading_spaces(m_p);
         if ( !is_eof(m_p) )
           throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
                             + " after the root array is closed");
@@ -255,7 +255,7 @@ void parser::parse_object(value& _jobj)
   {
     ++m_p;
     // "string" : value
-    REMOVE_LEADING_SPACES(m_p);
+    skip_leading_spaces(m_p);
     // This is the case where there are no elements in the object (An empty object)
     if ( *m_p == '}' ) { ++m_p; break; }
 
@@ -270,11 +270,11 @@ void parser::parse_object(value& _jobj)
     }
 
     m_out.stats.keys++;
-    REMOVE_LEADING_SPACES(m_p);
+    skip_leading_spaces(m_p);
     if ( *m_p != ':' )
       throw std::runtime_error("Expected : " + loc_str());
     m_p++;
-    REMOVE_LEADING_SPACES(m_p);
+    skip_leading_spaces(m_p);
     if ( ! isDuplicateKey )
     {
       parse_value(_jobj[m_key]);
@@ -330,7 +330,7 @@ void parser::parse_array(value& _jarr)
   {
     ++m_p;
     // value
-    REMOVE_LEADING_SPACES(m_p);
+    skip_leading_spaces(m_p);
     // This is the case where there are no elements in the array (An empty array)
     if ( *m_p == ']' ) { ++m_p; break; }
 
@@ -532,12 +532,12 @@ void parser::parse_value(value& _jval)
   else if ( _jval.is_null() )
     m_out.stats.nulls++;
 
-  REMOVE_LEADING_SPACES(m_p);
+  skip_leading_spaces(m_p);
 }
 
 void parser::parse_number(value& _jnum, bool bFullCheck)
 {
-  REMOVE_LEADING_SPACES(m_p);
+  skip_leading_spaces(m_p);
   const char* p_start = m_p;
   bool isDouble = false;
   bool isNegative = false;
@@ -619,7 +619,7 @@ void parser::parse_number(value& _jnum, bool bFullCheck)
   }
 
   const char* p_end = m_p;
-  REMOVE_LEADING_SPACES(m_p);
+  skip_leading_spaces(m_p);
   char ch = *m_p;
   if ( ch != ',' && ch != '\0' && ch != chContainer )
     throw std::runtime_error("Invalid character " + std::string(1, ch) + " Expected , or "
