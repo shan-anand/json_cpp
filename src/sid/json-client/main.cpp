@@ -259,15 +259,112 @@ std::string local::get_file_contents(const std::string& _filePath)
   in.open(_filePath);
   if ( ! in.is_open() )
     throw std::system_error(errno, std::system_category(), "Failed to open file: " + _filePath);
-  char buf[8096] = {0};
+  in.seekg(0, std::ios::end);
+  size_t fileSize = in.tellg();
+  in.seekg(0, std::ios::beg);
   std::string jsonStr;
-  while ( ! in.eof() )
+  if ( fileSize > 0 )
   {
-    std::memset(buf, 0, sizeof(buf));
-    in.read(buf, sizeof(buf)-1);
-    if ( in.bad() )
-      throw std::system_error(errno, std::system_category(), "Failed to read data");
-    jsonStr += buf;
+    // Define the size to read
+    const size_t BUFFER_SIZE = ::sysconf(_SC_PAGESIZE) * 32;
+    // Allocate enough space for the file contents
+    jsonStr.resize(fileSize);
+    char* p = jsonStr.data();
+    while ( ! in.eof() )
+    {
+      in.read(p, BUFFER_SIZE);
+      if ( in.bad() )
+        throw std::system_error(errno, std::system_category(), "Failed to read data");
+      p += in.gcount();
+    }
   }
   return jsonStr;
 }
+
+/*
+std::string local::get_file_contents(const std::string& _filePath)
+{
+  int fd = fd =::open(_filePath.c_str(), O_RDONLY);
+  if ( fd < 0 )
+    throw std::system_error(errno, std::system_category(), _filePath);
+
+  try
+  {
+    // get the filesize statistics
+    struct stat fileStat = {0};
+    ::fstat(fd, &fileStat);
+    std::string jsonStr;
+    if ( fileStat.st_size > 0 )
+    {
+      // Set the iovec buffer size
+      const size_t BUFFER_SIZE = ::sysconf(_SC_PAGESIZE) * 32;
+      // Determine the number of iovec's needed
+      const size_t iov_needed = (fileStat.st_size + BUFFER_SIZE - 1) / BUFFER_SIZE;
+      const size_t iov_count = std::min(iov_needed, (size_t) IOV_MAX);
+      // Allocate iovec on the stack
+      struct iovec* iov = (struct iovec*) ::alloca(iov_count*sizeof(struct iovec));
+      jsonStr.resize(fileStat.st_size);
+      char* p = jsonStr.data();
+      for ( size_t remaining = fileStat.st_size; remaining > 0; )
+      {
+        int i;
+        for ( i = 0; i < iov_count && remaining > 0; i++ )
+        {
+          iov[i].iov_base = p;
+          iov[i].iov_len = std::min(BUFFER_SIZE, remaining);
+          p += BUFFER_SIZE;
+          remaining -= iov[i].iov_len;
+        }
+        ssize_t r = ::readv(fd, iov, i);
+        if ( r < 0 )
+          throw std::system_error(errno, std::system_category(), "Failed to read data");
+      }
+    }
+    ::close(fd);
+    return jsonStr;
+  }
+  catch(const std::exception& e)
+  {
+    ::close(fd);
+    throw;
+  }
+}
+
+std::string local::get_file_contents(const std::string& _filePath)
+{
+  int fd = fd =::open(_filePath.c_str(), O_RDONLY);
+  if ( fd < 0 )
+    throw std::system_error(errno, std::system_category(), _filePath);
+
+  try
+  {
+    // get the filesize statistics
+    struct stat fileStat = {0};
+    ::fstat(fd, &fileStat);
+    std::string jsonStr;
+    if ( fileStat.st_size > 0 )
+    {
+      // Set the iovec buffer size
+      const size_t BUFFER_SIZE = ::sysconf(_SC_PAGESIZE) * 32;
+      jsonStr.resize(fileStat.st_size);
+      char* p = jsonStr.data();
+      for ( size_t toRead, remaining = fileStat.st_size; remaining > 0; )
+      {
+        toRead = std::min(BUFFER_SIZE, remaining);
+        ssize_t r = ::read(fd, p, toRead);
+        if ( r < 0 )
+          throw std::system_error(errno, std::system_category(), "Failed to read data");
+        p += r;
+        remaining -= r;
+      }
+      ::close(fd);
+    }
+    return jsonStr;
+  }
+  catch(const std::exception& e)
+  {
+    ::close(fd);
+    throw;
+  }
+}
+*/
