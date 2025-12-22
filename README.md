@@ -43,6 +43,12 @@ sid-json/
 │   └── memory_map.h           # Memory mapping utilities
 ├── src/sid/json-client/    # Client application
 │   └── main.cpp               # Example/test client
+├── tests/                  # Unit tests
+│   ├── CMakeLists.txt         # Test build configuration
+│   ├── test_main.cpp          # Test runner
+│   ├── test_value.cpp         # Value class tests
+│   ├── test_parser.cpp        # Parser tests
+│   └── test_format.cpp        # Format tests
 ├── cmake/                  # CMake utilities
 │   └── cmake_uninstall.cmake.in  # Uninstall script template
 ├── CMakeLists.txt             # Build configuration
@@ -85,6 +91,18 @@ make
 ```
 
 This will create a `libsid-json` library that can be linked to your projects.
+
+### Testing
+```bash
+# Build with tests
+cmake -DBUILD_TESTING=ON ..
+make
+
+# Run tests
+make test
+# or
+ctest --verbose
+```
 
 ### Installation
 ```bash

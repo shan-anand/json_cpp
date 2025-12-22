@@ -57,6 +57,11 @@ install(DIRECTORY include/sid
 # Show install messages
 set(CMAKE_INSTALL_MESSAGE ALWAYS)
 
+# Add tests subdirectory
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+
 # Uninstall target
 if(NOT TARGET uninstall)
   configure_file(
