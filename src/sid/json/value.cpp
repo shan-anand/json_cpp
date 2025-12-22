@@ -68,14 +68,14 @@ using namespace sid::json;
  * @param _out [out] parser ouput
  */
 /*static*/
-bool value::parse(
+void value::parse(
   const parser_input& _in,
   parser_output&      _out
   )
 {
   parser jparser(_in, _out);
   //jparser.m_schema = &_in.schema;
-  return jparser.parse();
+  jparser.parse();
 
 }
 
@@ -560,6 +560,14 @@ value& value::operator[](const std::string& _key)
   return (m_data.map())[_key];
 }
 
+// Erase value from the array
+void value::erase(const std::string& _key)
+{
+  if ( ! is_object() )
+    throw std::runtime_error(__func__ + std::string("key can be used only for object type"));
+  m_data.map().erase(_key);
+}
+
 value& value::append(const value& _obj)
 {
   if ( ! is_array() )
@@ -581,6 +589,16 @@ value& value::append()
   value jval;
   m_data._arr.push_back(std::move(jval));
   return m_data._arr[m_data._arr.size()-1];
+}
+
+// Erase value from the array
+void value::erase(const size_t _index)
+{
+  if ( ! is_array() )
+    throw std::runtime_error(__func__ + std::string(": can be used only for array type"));
+  if ( _index >= m_data._arr.size() )
+    throw std::out_of_range(__func__ + std::string("; Attempting to delete index ") + std::to_string(_index));
+  m_data._arr.erase(m_data._arr.begin() + _index);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -773,7 +791,7 @@ struct json_value_type_map
     {value_type::array,     "array"}
   };
 
-std::string to_str(const json::value_type& _type)
+std::string json::to_str(const json::value_type& _type)
 {
   std::string name;
   for ( const auto& entry : gValueTypeMap )

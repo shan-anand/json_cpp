@@ -78,48 +78,16 @@ public:
   //! Object type definition
   using object_t = std::map<std::string, value>;
 public:
-  static bool parse(
+  /**
+   * @fn parse
+   * @brief parse json data
+   * @param _in input data
+   * @param _out output data
+   * @throws std::exception if parsing fails
+   */
+  static void parse(
     const parser_input& _in,
     parser_output&      _out
-    );
-  /**
-   * @fn bool parse(value&                _jout,
-   *                parser_stats&         _stats,
-   *                const std::string&    _value,
-   *                const schema&         _schema,
-   *                const parser_control& _ctrl = parser_control()
-   *               );
-   * @brief Convert the given json string to json object
-   *
-   * @param _jout [out] json output
-   * @param _stats [out] Parser statistics
-   * @param _value [in] Input json string
-   * @param _schema [in] Json schema to validate against
-   * @param _ctrl [in] Parser control flags
-   */
-  static bool parse(
-    value&                _jout,
-    const std::string&    _value,
-    const parser_control& _ctrl = parser_control()
-    );
-  static bool parse(
-    value&                _jout,
-    const std::string&    _value,
-    const schema&         _schema,
-    const parser_control& _ctrl = parser_control()
-    );
-  static bool parse(
-    value&                _jout,
-    parser_stats&         _stats,
-    const std::string&    _value,
-    const parser_control& _ctrl = parser_control()
-    );
-  static bool parse(
-    value&                _jout,
-    parser_stats&         _stats,
-    const std::string&    _value,
-    const schema&         _schema,
-    const parser_control& _ctrl = parser_control()
     );
 
   // Constructors
@@ -223,6 +191,8 @@ public:
   value& operator[](const size_t _index);
   const value& operator[](const std::string& _key) const;
   value& operator[](const std::string& _key);
+  //! Erase value from the object
+  void erase(const std::string& _key);
   //! Append value to the array
   value& append();
   value& append(const value& _obj);
@@ -237,6 +207,8 @@ public:
     jval.m_type = jval.m_data.init(_val);
     return jval;
   }
+  // Erase value from the array
+  void erase(const size_t _index);
 
   //! Convert json to string using the given format type
   std::string to_str(const format_type _type = format_type::compact) const;

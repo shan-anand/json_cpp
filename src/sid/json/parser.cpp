@@ -96,100 +96,34 @@ parser::parser(const parser_input& _in, parser_output& _out)
 {  
 }
 
-//! check for space character
-bool parser::is_space(const char* _p)
-{
-  if ( *_p == '\n' )
-  {
-    ++m_line.count;
-    m_line.begin = _p + 1;
-    return true;
-  }
-  return ::isspace(*_p);
-}
-
-bool parser::is_eof(const char* _p) const
-{
-  return (_p > m_eof);
-}
-
-void parser::skip_leading_spaces(const char*& _p)
-{
-  do
-  {
-    for (; !is_eof(_p) && is_space(_p); _p++ );
-    if ( is_eof(_p) || (*_p != '/' && *_p != '#') )
-      return;
-
-    if ( *_p == '#' )
-    {
-      // Shell/Python style comment encountered. Parse until end of line
-      for ( _p++; *_p != '\n' && !is_eof(_p); _p++ );
-    }
-    else if ( *(_p+1) == '/' )
-    {
-      // C++ style comment encountered. Parse until end of line
-      for ( _p++; *_p != '\n' && !is_eof(_p); _p++ );
-    }
-    else if ( *(_p+1) == '*' )
-    {
-      const line_info old_line = m_line;
-      const char* old_p = _p;
-      // C style comment encountered. Parse until */
-      do
-      {
-        for ( _p++; *_p != '*' && !is_eof(_p); _p++ )
-        {
-          if ( *_p == '\n' )
-          {
-            ++m_line.count;
-            m_line.begin = _p + 1;
-          }
-        }
-        if ( *_p != '*' )
-          throw std::runtime_error(std::string("Comments starting " + loc_str(old_line, old_p))
-                               + " is not closed");
-      }
-      while ( *(_p+1) != '/' );
-      _p += 2;
-    }
-  }
-  while ( true );
-}
 
 //! parse and convert to json object
-bool parser::parse()
+void parser::parse()
 {
   auto start = [&]()
   {
-    m_line.begin = m_p;
+    // Initialize local objects for parsing
+    m_line.begin = tellg();
     m_line.count = 1;
-    skip_leading_spaces(m_p);
-    if ( !is_eof(m_p) )
-    {
-      char ch = *m_p;
-      if ( ch == '{' )
-      {
-        parse_object(m_out.jroot);
-        skip_leading_spaces(m_p);
-        if ( !is_eof(m_p) )
-          throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
-                            + " after the root object is closed");
-      }
-      else if ( ch == '[' )
-      {
-        parse_array(m_out.jroot);
-        skip_leading_spaces(m_p);
-        if ( !is_eof(m_p) )
-          throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
-                            + " after the root array is closed");
-      }
-      else
-        throw std::runtime_error(std::string("Invalid character [") + *m_p + "] " + loc_str()
-                            + ". Expecting { or [");
-    }
-    else
+    if ( !skip_leading_spaces() )
       throw std::runtime_error(std::string("End of data reached ") + loc_str() + ". Expecting { or [");
+
+    switch ( peek() )
+    {
+    case '{':
+      parse_object(m_out.jroot);
+      break;
+    case '[':
+      parse_array(m_out.jroot);
+      break;
+    default:
+      throw std::runtime_error(std::string("Invalid character [") + peek() + "] " + loc_str()
+                          + ". Expecting { or [");
+    }
+    // Ensure there are no invalid trailing characters
+    if ( skip_leading_spaces() )
+      throw std::runtime_error(std::string("Invalid character [") + peek() + "] " + loc_str()
+                        + " after the root " + to_str(m_out.jroot.type()) + " is closed");
   };
 
   time_calc tc;
@@ -199,9 +133,8 @@ bool parser::parse()
     if ( m_schema && m_schema->empty() )
       throw std::runtime_error("Invalid schema given for validation");
 
-    tc.start();
-
     m_out.clear();
+    tc.start();
 
     switch ( m_in.inputType )
     {
@@ -210,8 +143,9 @@ bool parser::parse()
         // Set the size of the data
         m_out.stats.data_size = m_in.input.length();
         // Set the current position
-        m_p = m_in.input.c_str();
-        m_eof = m_p + m_in.input.length() - 1;
+        m_first = m_in.input.c_str();
+        m_last = m_first + m_in.input.length() - 1;
+        seekg(m_first);
         start();
       }
       break;
@@ -221,8 +155,9 @@ bool parser::parse()
         // Set the size of the data
         m_out.stats.data_size = mm.size();
         // Set the current position
-        m_p = mm.begin();
-        m_eof = mm.end();
+        m_first = mm.begin();
+        m_last = mm.end();
+        seekg(m_first);
         start();
       }
       break;
@@ -237,10 +172,7 @@ bool parser::parse()
     m_out.stats.time_ms = tc.diff_millisecs();
     throw;
   }
-
   //cout << "Object allocations: " << sid::get_sep(gobjects_alloc) << endl;
-  // return the top-level json
-  return true;
 }
 
 void parser::parse_object(value& _jobj)
@@ -251,13 +183,20 @@ void parser::parse_object(value& _jobj)
 
   m_containerStack.push(value_type::object);
   m_out.stats.objects++;
-  while ( true )
+  for ( bool firstTime = true; true; firstTime = false )
   {
-    ++m_p;
+    next();
     // "string" : value
-    skip_leading_spaces(m_p);
+    if ( !skip_leading_spaces() )
+      throw std::runtime_error("End of data reached " + loc_str() + " while expecting an object key or }");
     // This is the case where there are no elements in the object (An empty object)
-    if ( *m_p == '}' ) { ++m_p; break; }
+    if ( peek() == '}' )
+    {
+      if ( !firstTime )
+        throw std::runtime_error("End of object character } found at" + loc_str() + " while expecting a key");
+      next();
+      break;
+    }
 
     parse_key(m_key);
     // Check whether this key already exists in the object map
@@ -270,11 +209,14 @@ void parser::parse_object(value& _jobj)
     }
 
     m_out.stats.keys++;
-    skip_leading_spaces(m_p);
-    if ( *m_p != ':' )
-      throw std::runtime_error("Expected : " + loc_str());
-    m_p++;
-    skip_leading_spaces(m_p);
+    if ( !skip_leading_spaces() )
+      throw std::runtime_error("End of data reached " + loc_str() + " while expecting : for object key" + m_key);
+    if ( peek() != ':' )
+      throw std::runtime_error("Expected : " + loc_str() + " for object key" + m_key);
+    next();
+    if ( !skip_leading_spaces() )
+      throw std::runtime_error("End of data reached " + loc_str() + " while expecting a value for object key" + m_key);
+    // Handle new key
     if ( ! isDuplicateKey )
     {
       parse_value(_jobj[m_key]);
@@ -308,12 +250,12 @@ void parser::parse_object(value& _jobj)
       value& jval = _jobj[m_key].append();
       parse_value(jval);
     }
-    ch = *m_p;
+    ch = peek();
     // Can have a ,
     // Must end with }
-    if ( ch == '}' ) { ++m_p; break; }
+    if ( ch == '}' ) { next(); break; }
     if ( ch != ',' )
-      throw std::runtime_error("Encountered " + std::string(m_p, 1) + ". Expected , or } " + loc_str());
+      throw std::runtime_error("Encountered " + std::string(1, peek()) + ". Expected , or } " + loc_str());
   }
   m_containerStack.pop();
 }
@@ -326,20 +268,27 @@ void parser::parse_array(value& _jarr)
 
   m_containerStack.push(value_type::array);
   m_out.stats.arrays++;
-  while ( true )
+  for ( bool firstTime = true; true; firstTime = false)
   {
-    ++m_p;
+    next();
     // value
-    skip_leading_spaces(m_p);
+    if ( !skip_leading_spaces() )
+      throw std::runtime_error("End of data reached " + loc_str() + " while expecting a value or ]");
     // This is the case where there are no elements in the array (An empty array)
-    if ( *m_p == ']' ) { ++m_p; break; }
+    if ( peek() == ']' )
+    {
+      if ( !firstTime )
+        throw std::runtime_error("End of array character ] found at" + loc_str() + " while expecting a value");
+      next();
+      break;
+    }
 
     value& jval = _jarr.append();
     parse_value(jval);
-    ch = *m_p;
+    ch = peek();
     // Can have a ,
     // Must end with ]
-    if ( ch == ']' ) { ++m_p; break; }
+    if ( ch == ']' ) { next(); break; }
     if ( ch != ',' )
       throw std::runtime_error("Expected , or ] " + loc_str());
   }
@@ -357,16 +306,16 @@ void parser::parse_string(std::string& _str, bool _isKey)
   const char chContainer = (m_containerStack.top() == value_type::object)? '}' : ']' ;
   bool hasQuotes = true;
   if ( ( _isKey && m_in.ctrl.mode.allowFlexibleKeys ) || ( ! _isKey && m_in.ctrl.mode.allowFlexibleStrings ) )
-    hasQuotes = (*m_p == '\"');
-  else if ( *m_p != '\"' )
-    throw std::runtime_error("Expected \" " + loc_str() + ", found \"" + std::string(1, *m_p) + "\"");
+    hasQuotes = (peek() == '\"');
+  else if ( peek() != '\"' )
+    throw std::runtime_error("Expected \" " + loc_str() + ", found \"" + std::string(1, peek()) + "\"");
 
   const line_info old_line = m_line;
-  const char* old_p = m_p;
+  pos_type old_pos = tellg();
 
   auto check_hex = [&](char ch)->char
     {
-      if ( ch == '\0' )
+      if ( eof() )
         throw std::runtime_error("Missing hexadecimal sequence characters at the end position "
                              + loc_str());
       if ( ! ::isxdigit(ch) )
@@ -376,40 +325,39 @@ void parser::parse_string(std::string& _str, bool _isKey)
 
   char ch = 0;
   if ( !hasQuotes )
-    --m_p;
+    prev();
 
   while ( true )
   {
-    ch = *(++m_p);
+    ch = next();
     if ( hasQuotes )
     {
+      if ( eof() )
+        throw std::runtime_error("Missing \" for string starting " + loc_str(old_line, old_pos));
       if ( ch == '\"' ) break;
       if ( ch == '\n' )
-      {
-        ++m_line.count;
-        m_line.begin = m_p + 1;
-      }
-      else if ( ch == '\0' )
-        throw std::runtime_error("Missing \" for string starting " + loc_str(old_line, old_p));
+        handle_newline();
     }
     else
     {
+      if ( eof() )
+        throw std::runtime_error("End of string character not found for string starting " + loc_str());
       // Cannot have double-quotes, it must be escaped
       if ( ch == '\"' ) throw std::runtime_error("Character \" must be escaped " + loc_str());
       // A space character denotes end of the string
-      if ( is_space(m_p) )
+      if ( is_space() )
         break;
       // For a key : denotes end of the key
       // For a value , and the end of container key denotes end of the value
       if ( ( _isKey && ch == ':' ) || ( ! _isKey && (ch == ',' || ch == chContainer) ) )
-        { --m_p; break; }
-      if ( ch == '\0' )
-        throw std::runtime_error("End of string character not found for string starting " + loc_str());
+        { prev(); break; }
     }
     if ( ch != '\\' ) { _str += ch; continue; }
     // We're encountered an escape character. Process it
     {
-      ch = *(++m_p);
+      ch = next();
+      if ( eof() )
+        throw std::runtime_error("Missing escape sequence characters at the end position " + loc_str());
       switch ( ch )
       {
       case '/':  _str += ch;   break;
@@ -421,23 +369,19 @@ void parser::parse_string(std::string& _str, bool _isKey)
       case '\\': _str += ch;   break;
       case '\"': _str += ch;   break;
       case 'u':
-      {
-        const char* p = m_p;
-        // Must be followed by 4 hex digits
-        for ( int i = 0; i < 4; i++ )
-          check_hex(*(++m_p));
-        _str.append(p-1, 6);
-      }
-      break;
-      case '\0':
-        throw std::runtime_error("Missing escape sequence characters at the end position " + loc_str());
+        {
+          // Must be followed by 4 hex digits
+          for ( int i = 0; i < 4; i++ )
+            _str += check_hex(next());
+        }
+        break;
       default:
         throw std::runtime_error("Invalid escape sequence (" + std::string(1, ch) +
                              ") for string at " + loc_str());
       }
     }
   }
-  ++m_p;
+  next();
 }
 
 void parser::parse_string(value& _jstr, bool _isKey)
@@ -449,7 +393,10 @@ void parser::parse_string(value& _jstr, bool _isKey)
 
 void parser::parse_value(value& _jval)
 {
-  char ch = *m_p;
+  if ( eof() )
+    throw std::runtime_error("Unexpected end of data while expecting a value");
+
+  char ch = peek();
   if ( ch == '{' )
     parse_object(_jval);
   else if ( ch == '[' )
@@ -458,36 +405,38 @@ void parser::parse_value(value& _jval)
     parse_string(_jval, false);
   else if ( ch == '-' || ::isdigit(ch) )
     parse_number(_jval);
-  else if ( ch == '\0' )
-    throw std::runtime_error("Unexpected end of data while expecting a value");
   else
   {
     const char chContainer = (m_containerStack.top() == value_type::object)? '}' : ']' ;
-    const char* p_start = m_p;
+    pos_type old_pos = tellg();
     const line_info old_line = m_line;
-    for ( char ch; (ch = *m_p) != '\0'; ++m_p )
+
+    char data[6] = {0}; // to capture null, true, false
+    int len = 0;
+    for ( char ch; !eof(); next(), len++ )
     {
-      if ( ch == ',' || is_space(m_p) || ch == chContainer )
+      ch = peek();
+      if ( len > 5 || ch == ',' || is_space() || ch == chContainer )
         break;
+      data[len] = ch;
     }
-    if ( m_p == p_start )
+    if ( tellg() == old_pos )
       throw std::runtime_error("Expected value not found " + loc_str());
 
     bool found = true;
-    size_t len = m_p - p_start;
     if ( len == 4 )
     {
-      if ( ::strncmp(p_start, "null", len) == 0 )
+      if ( ::strncmp(data, "null", len) == 0 )
         ;
-      else if ( ::strncmp(p_start, "true", len) == 0 )
+      else if ( ::strncmp(data, "true", len) == 0 )
         _jval = true;
       else if ( ! m_in.ctrl.mode.allowNocaseValues )
         found = false;
       else
       {
-        if ( ::strncmp(p_start, "Null", len) == 0 || ::strncmp(p_start, "NULL", len) == 0 )
+        if ( ::strncmp(data, "Null", len) == 0 || ::strncmp(data, "NULL", len) == 0 )
           ;
-        else if ( ::strncmp(p_start, "True", len) == 0 || ::strncmp(p_start, "TRUE", len) == 0 )
+        else if ( ::strncmp(data, "True", len) == 0 || ::strncmp(data, "TRUE", len) == 0 )
           _jval = true;
         else
           found = false;
@@ -495,13 +444,13 @@ void parser::parse_value(value& _jval)
     }
     else if ( len == 5 )
     {
-      if ( ::strncmp(p_start, "false", len) == 0 )
+      if ( ::strncmp(data, "false", len) == 0 )
         _jval = false;
       else if ( ! m_in.ctrl.mode.allowNocaseValues )
         found = false;
       else
       {
-        if ( ::strncmp(p_start, "False", len) == 0 || ::strncmp(p_start, "FALSE", len) == 0 )
+        if ( ::strncmp(data, "False", len) == 0 || ::strncmp(data, "FALSE", len) == 0 )
           _jval = false;
         else
           found = false;
@@ -513,12 +462,12 @@ void parser::parse_value(value& _jval)
     {
       if ( m_in.ctrl.mode.allowFlexibleStrings )
       {
-        m_p = p_start;
+        seekg(old_pos);
         m_line = old_line;
         parse_string(_jval, false);
       }
       else
-        throw std::runtime_error("Invalid value [" + std::string(p_start, len) + "] " + loc_str()
+        throw std::runtime_error("Invalid value [" + std::string(old_pos, len) + "] " + loc_str()
                              + ". Did you miss enclosing in \"\"?");
     }
   }
@@ -532,40 +481,40 @@ void parser::parse_value(value& _jval)
   else if ( _jval.is_null() )
     m_out.stats.nulls++;
 
-  skip_leading_spaces(m_p);
+  skip_leading_spaces();
 }
 
 void parser::parse_number(value& _jnum)
 {
-  skip_leading_spaces(m_p);
-  const char* p_start = m_p;
+  skip_leading_spaces();
+  pos_type start_pos = tellg();
   const char chContainer = (m_containerStack.top() == value_type::object)? '}' : ']' ;
 
   number_info num;
-  // Perform full check and get the number
-  if ( (num.integer.negative = (*m_p == '-')) )
-    ++m_p;
-  char ch = *m_p;
+
+  if ( (num.integer.negative = (peek() == '-')) )
+    next();
+  char ch = peek();
   if ( ch < '0' || ch > '9' )
     throw std::runtime_error("Missing integer digit" + loc_str());
 
   if ( ch == '0' )
   {
-    ch = *(++m_p);
+    ch = next();
     if ( ch >= '0' && ch <= '9' )
       throw std::runtime_error("Invalid digit (" + std::string(1, ch) + ") after first 0 " + loc_str());
     num.integer.digits = 0;
   }
   else
   {
-    while ( (ch = *(++m_p)) >= '0' && ch <= '9'  )
+    while ( (ch = next()) >= '0' && ch <= '9'  )
       ;
   }
   // Check whether it has fraction and populate accordingly
   if ( ch == '.' )
   {
     bool hasDigits = false;
-    while ( (ch = *(++m_p)) >= '0' && ch <= '9'  )
+    while ( (ch = next()) >= '0' && ch <= '9'  )
       hasDigits = true;
     if ( !hasDigits )
       throw std::runtime_error("Invalid digit (" + std::string(1, ch)
@@ -575,11 +524,11 @@ void parser::parse_number(value& _jnum)
   // Check whether it has an exponent and populate accordingly
   if ( ch == 'e' || ch == 'E' )
   {
-    ch = *(++m_p);
+    ch = next();
     if ( ch != '-' && ch != '+' )
-      --m_p;
+      prev();
     bool hasDigits = false;
-    while ( (ch = *(++m_p)) >= '0' && ch <= '9'  )
+    while ( (ch = next()) >= '0' && ch <= '9'  )
       hasDigits = true;
     if ( !hasDigits )
       throw std::runtime_error("Invalid digit (" + std::string(1, ch)
@@ -589,14 +538,15 @@ void parser::parse_number(value& _jnum)
 
   const bool isNegative = num.integer.negative;
   const bool isDouble = ( num.hasFraction || num.hasExponent );
-  const char* p_end = m_p;
-  skip_leading_spaces(m_p);
-  ch = *m_p;
-  if ( ch != ',' && ch != '\0' && ch != chContainer )
+
+  pos_type end_pos = tellg();
+  skip_leading_spaces();
+  ch = peek();
+  if ( !eof() && ch != ',' && ch != chContainer )
     throw std::runtime_error("Invalid character " + std::string(1, ch) + " Expected , or "
                          + std::string(1, chContainer) + " " + loc_str());
 
-  std::string numStr(p_start, p_end-p_start), errStr;
+  std::string numStr = get_str(start_pos, end_pos-start_pos), errStr;
   if ( isDouble )
   {
     long double v = 0.0;
@@ -624,4 +574,71 @@ void parser::parse_number(value& _jnum)
       _jnum = v;
     }
   }
+}
+
+//! check for space character
+bool parser::is_space()
+{
+  if ( peek() == '\n' )
+  {
+    handle_newline();
+    return true;
+  }
+  return ::isspace(peek());
+}
+
+bool parser::skip_leading_spaces()
+{
+  do
+  {
+    for (; !eof() && is_space(); next() );
+    if ( eof() ) return false;
+    switch ( peek() )
+    {
+    case '#':
+      // Shell/Python style comment encountered. Parse until end of line
+      for ( next(); peek() != '\n' && !eof(); next() );
+      break;
+    case '/':
+      next();
+      if ( eof() )
+        throw std::runtime_error("Invalid character at the end");
+      switch ( peek() )
+      {
+      case '/':
+        // C++ style comment encountered. Parse until end of line
+        for ( next(); peek() != '\n' && !eof(); next() );
+        break;
+      case '*':
+        {
+          const line_info old_line = m_line;
+          const pos_type old_pos = tellg();
+          // C style comment encountered. Parse until */
+          do
+          {
+            for ( next(); peek() != '*' && !eof(); next() )
+            {
+              if ( peek() == '\n' )
+                handle_newline();
+            }
+            if ( eof() )
+              throw std::runtime_error(std::string("Comments starting " + loc_str(old_line, old_pos))
+                                    + " is not closed");
+            next();
+          }
+          while ( peek() != '/' );
+          next();
+        }
+        break;
+      default:
+        throw std::runtime_error(std::string("Invalid character [") + peek() + "] " + loc_str()
+                              + " after the /");
+      }
+      break;
+    default: // Any other character
+      // That means we've skipped all the leading spaces and comments
+      return true;
+    }
+  }
+  while ( true );
 }

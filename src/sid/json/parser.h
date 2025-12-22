@@ -59,28 +59,43 @@ struct parser
   //! constructor
   parser(const parser_input& _in, parser_output& _out);
 
-  //! parse and convert to json object
-  bool parse();
+  //! parse and convert to json object. Throws std::exception if parsing fails.
+  void parse();
 
 private:
+  using pos_type = const char*;
   struct line_info
   {
-    const char* begin; //! Beginning of word position
-    uint64_t    count; //! Current line number
+    pos_type begin; //! Beginning of word position
+    uint64_t count; //! Current line number
   };
   //! Key value for object. It is reused in recursion.
   std::string m_key;
-  const char* m_p;
   line_info   m_line;
-  const char* m_eof;
+  pos_type    m_p, m_first, m_last;
+
+  inline pos_type tellg() const { return m_p; }
+  inline pos_type seekg(pos_type _p) { m_p = _p; return m_p; }
+  inline char peek() const { return *m_p; }
+  inline char next() { ++m_p; return *m_p; }
+  inline char prev() { --m_p; return *m_p; }
+  inline bool eof() const { return m_p > m_last; }
+  inline std::string get_str(pos_type _begin, size_t length) const {
+    return std::string(_begin, length);
+  }
+  inline void handle_newline()
+  {
+    ++m_line.count;
+    m_line.begin = tellg() + 1;
+  }
 
   //! get the current location of paring in the string
-  inline std::string loc_str(const line_info& line, const char* p) const {
+  inline std::string loc_str(const line_info& line, pos_type p) const {
     return std::string("@line:") + std::to_string(line.count) + ", @pos:" + std::to_string(p-line.begin+1);
   }
-  inline std::string loc_str(const line_info& line) const { return loc_str(line, m_p); }
-  inline std::string loc_str(const char* p) const { return loc_str(m_line, p); }
-  inline std::string loc_str() const { return loc_str(m_line, m_p); }
+  inline std::string loc_str(const line_info& line) const { return loc_str(line, tellg()); }
+  inline std::string loc_str(pos_type p) const { return loc_str(m_line, p); }
+  inline std::string loc_str() const { return loc_str(m_line, tellg()); }
 
   //! parse object
   void parse_object(value& _jobj);
@@ -97,11 +112,9 @@ private:
   void parse_value(value& _jval);
 
   //! check for space character
-  bool is_space(const char* _p);
-  //! are we at end of data
-  bool is_eof(const char* _p) const;
+  bool is_space();
   //! remove leading spaces and comments
-  void skip_leading_spaces(const char*& _p);
+  bool skip_leading_spaces();
 };
 
 } // namespace sid::json
