@@ -22,36 +22,39 @@ sid-json is a fast, lightweight JSON library that provides comprehensive JSON pa
 
 ```
 sid-json/
+├── cmake/                  # CMake utilities
+│   └── cmake_uninstall.cmake.in  # Uninstall script template
 ├── include/sid/json/       # Public headers
 │   ├── json.h                 # Main include file
 │   ├── value.h                # JSON value class
-│   ├── format.h               # Output formatting
 │   ├── parser_control.h       # Parser configuration
+│   ├── format.h               # Output formatting
 │   ├── parser_stats.h         # Parsing statistics
-│   └── schema.h               # Schema validation
+│   └── schema.h               # Schema validation (TODO)
 ├── src/sid/json/           # Implementation files
-│   ├── format.cpp
-│   ├── parser.cpp
-│   ├── parser_stats.cpp
-│   ├── schema.cpp
-│   ├── time_calc.cpp
-│   ├── utils.cpp
-│   ├── value.cpp
-│   ├── parser.h               # Internal parser header
+│   ├── value.cpp              # Implemenetaion of JSON value class
+│   ├── parser.h               # Internal parser implementation
+│   ├── parser_io.h            # Input structures for Character and Buffer parsers
+│   ├── format.cpp             # Output formatting
+│   ├── memory_map.h           # Memory mapping utilities
+│   ├── parser_stats.cpp       # Implementation of parsing statistics
+│   ├── schema.cpp             # Schema (TODO)
+│   ├── time_calc.cpp          # Implementation of time utitilies
 │   ├── time_calc.h            # Internal timing utilities
-│   ├── utils.h                # Internal utility functions
-│   └── memory_map.h           # Memory mapping utilities
+│   ├── utils.cpp              # Implementation of internal utility functions
+│   └── utils.h                # Internal utility functions
 ├── src/sid/json-client/    # Client application
 │   └── main.cpp               # Example/test client
 ├── tests/                  # Unit tests
-│   ├── CMakeLists.txt         # Test build configuration
+│   ├── test_format.cpp        # Format tests
 │   ├── test_main.cpp          # Test runner
-│   ├── test_value.cpp         # Value class tests
 │   ├── test_parser.cpp        # Parser tests
-│   └── test_format.cpp        # Format tests
-├── cmake/                  # CMake utilities
-│   └── cmake_uninstall.cmake.in  # Uninstall script template
+│   ├── test_schema.cpp        # Schema tests
+│   ├── test_value.cpp         # Value class tests
+│   ├── CMakeLists.txt         # Test build configuration
+│   └── README.md              # Test documentation
 ├── CMakeLists.txt             # Build configuration
+├── generate_json.py           # JSON test data generator
 ├── LICENSE                    # MIT License
 └── README.md                  # This file
 ```
@@ -99,14 +102,21 @@ cmake -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug ..
 make
 
 # Run tests
-make test
-# or
+ctest
+
+# Run with verbose output
 ctest --verbose
 
-# Generate coverage report (requires lcov)
+# Generate coverage report
+# For GCC:
 lcov --capture --directory . --output-file coverage.info
 lcov --remove coverage.info '/usr/*' --output-file coverage.info
 genhtml coverage.info --output-directory coverage_html
+
+# For Clang:
+LLVM_PROFILE_FILE="coverage.profraw" ctest
+llvm-profdata merge -sparse coverage.profraw -o coverage.profdata
+llvm-cov show ./tests/sid-json-tests -instr-profile=coverage.profdata -format=html -output-dir=coverage_html
 ```
 
 ### Installation
@@ -204,7 +214,7 @@ std::string formatted = obj.to_str(fmt);
 - **Case-Insensitive Values**: Accept True/FALSE/NULL variants
 
 ### Duplicate Key Handling
-- **Accept**: Overwrite with latest value
+- **Overwrite**: Overwrite with latest value (default)
 - **Ignore**: Keep first value, ignore duplicates
 - **Append**: Convert to array and append all values
 - **Reject**: Throw error on duplicate keys
@@ -236,8 +246,8 @@ Options: <key>[=<value>]
   <key>
   -h, --help                     Show this help message
       --stdin                    Read from stdin (interactive mode only)
-  -d, --dup, --duplicate=<mode>  Duplicate key handling (mode: accept|ignore|append|reject)
-                                 If omitted, it defaults to accept
+  -d, --dup, --duplicate=<mode>  Duplicate key handling (mode: overwrite|ignore|append|reject)
+                                 If omitted, it defaults to overwrite
   -k, --allow-flex-keys,         Allow unquoted object keys
       --allow-flexible-keys
   -s, --allow-flex-strings,      Allow unquoted string values
@@ -246,9 +256,11 @@ Options: <key>[=<value>]
       --allow-nocase-values
   -o, --show-output[=<format>]   Show parsed JSON output (format: compact|pretty)
                                  If <format> is omitted, it defaults to compact
-  -u, --use=<method>             Parsing method (method: mmap|data|string)
-                                 Valid only if <filename> is provided, skipped for stdin
-                                 If omitted, it defaults to mmap
+  -u, --use=<method>             Parsing method (method: mmap|string|file-buffer|string-buffer|file-stream|string-stream)
+                                 mmap is valid only if <filename> is provided, for --stdin it switches to default
+                                 If omitted, it defaults to
+                                    * mmap for <filename>
+                                    * string-stream for --stdin
 
 Examples:
   sid-json-client ./data.json               # Parse data.json file
