@@ -37,6 +37,8 @@ LICENSE: END
  * @brief Implementation of json schema
  */
 #include "json/schema.h"
+#include "parser_io.h"
+#include "parser.h"
 #include <fstream>
 #include <stack>
 #include <iomanip>
@@ -144,9 +146,10 @@ schema schema::parse_file(const std::string& _schemaFile)
 /*static*/
 schema schema::parse(const std::string& _schemaData)
 {
-  parser_input in(json::input_type::data, _schemaData);
+  char_parser_input in(_schemaData, input_type::data);
   parser_output out;
-  value::parse(in, out);
+  char_parser parser(in, out);
+  parser.parse();
   return parse(out.jroot);
 }
 
@@ -338,9 +341,9 @@ void schema::property::set(const value& _jproperties, const std::string& _key)
   }
 }
 
-std::string schema::to_str() const
+std::string schema::to_string() const
 {
-  return to_json().to_str(format_type::pretty);
+  return to_json().to_string(format_type::pretty);
 }
 
 value schema::to_json() const
@@ -365,9 +368,9 @@ value schema::to_json() const
   return jroot;
 }
 
-std::string schema::property_vec::to_str() const
+std::string schema::property_vec::to_string() const
 {
-  return to_json().to_str(format_type::pretty);
+  return to_json().to_string(format_type::pretty);
 }
 
 value schema::property_vec::to_json() const
@@ -379,9 +382,9 @@ value schema::property_vec::to_json() const
   return jroot;
 }
 
-std::string schema::property::to_str() const
+std::string schema::property::to_string() const
 {
-  return to_json().to_str(format_type::pretty);
+  return to_json().to_string(format_type::pretty);
 }
 
 value schema::property::to_json() const

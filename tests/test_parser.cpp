@@ -11,10 +11,9 @@ protected:
 
 TEST_F(ParserTest, ParseSimpleObject) {
     std::string json = R"({"name": "John", "age": 30})";
-    parser_input in {input_type::data, json};
     parser_output out;
     
-    EXPECT_NO_THROW(value::parse(in, out));
+    EXPECT_NO_THROW(value::parse(out, json));
     EXPECT_TRUE(out.jroot.is_object());
     EXPECT_EQ(out.jroot["name"].get_str(), "John");
     EXPECT_EQ(out.jroot["age"].get_int64(), 30);
@@ -23,11 +22,10 @@ TEST_F(ParserTest, ParseSimpleObject) {
 
 TEST_F(ParserTest, ParseSimpleArray) {
     std::string json = R"([1, "hello", true, null, false])";
-    parser_input in; // Set using in.set() below
     parser_output out;
-    
-    EXPECT_NO_THROW(in.set(input_type::data, json));
-    EXPECT_NO_THROW(value::parse(in, out));
+
+    std::istringstream sstr(json);
+    EXPECT_NO_THROW(value::parse(out, sstr));
     EXPECT_TRUE(out.jroot.is_array());
     EXPECT_EQ(out.jroot.size(), 5);
     EXPECT_EQ(out.jroot[0].get_int64(), 1);
@@ -46,10 +44,10 @@ TEST_F(ParserTest, ParseNestedStructures) {
         "active": true
     })";
     
-    parser_input in {input_type::data, json};
     parser_output out;
-    
-    EXPECT_NO_THROW(value::parse(in, out));
+
+    std::stringbuf sbuf(json, std::ios_base::in);
+    EXPECT_NO_THROW(value::parse(out, sbuf));
     EXPECT_TRUE(out.jroot.is_object());
     EXPECT_EQ(out.jroot["user"]["name"].get_str(), "Alice");
     EXPECT_TRUE(out.jroot["user"]["scores"].is_array());
@@ -60,10 +58,9 @@ TEST_F(ParserTest, ParseNestedStructures) {
 
 TEST_F(ParserTest, ParseWithStats) {
     std::string json = R"({"obj": {}, "arr": [1, 2], "str": "test"})";
-    parser_input in {input_type::data, json};
     parser_output out;
     
-    EXPECT_NO_THROW(value::parse(in, out));
+    EXPECT_NO_THROW(value::parse(out, json));
     EXPECT_GT(out.stats.objects, 0);
     EXPECT_GT(out.stats.arrays, 0);
     EXPECT_GT(out.stats.strings, 0);
@@ -73,12 +70,12 @@ TEST_F(ParserTest, ParseWithStats) {
 
 TEST_F(ParserTest, ParseWithControl) {
     std::string json = R"({key: "value1", key: "value2"})";
-    parser_input in {input_type::data, json};
-    in.ctrl.mode.allowFlexibleKeys = true;
-    in.ctrl.dupKey = parser_control::dup_key::append;
     parser_output out;
     
-    EXPECT_NO_THROW(value::parse(in, out));
+    parser_control ctrl;
+    ctrl.mode.allowFlexibleKeys = true;
+    ctrl.dupKey = parser_control::dup_key::append;
+    EXPECT_NO_THROW(value::parse(out, json, ctrl));
     EXPECT_TRUE(out.jroot["key"].is_array());
     EXPECT_EQ(out.jroot["key"].size(), 2);
 }
@@ -91,10 +88,9 @@ TEST_F(ParserTest, ParseNumbers) {
         "exp": 1.23e-4
     })";
     
-    parser_input in {input_type::data, json};
     parser_output out;
     
-    EXPECT_NO_THROW(value::parse(in, out));
+    EXPECT_NO_THROW(value::parse(out, json));
     EXPECT_EQ(out.jroot["int"].get_int64(), 42);
     EXPECT_EQ(out.jroot["negative"].get_int64(), -17);
     EXPECT_DOUBLE_EQ(out.jroot["float"].get_double(), 3.14);
@@ -103,10 +99,9 @@ TEST_F(ParserTest, ParseNumbers) {
 
 TEST_F(ParserTest, ParseEscapedStrings) {
     std::string json = R"({"text": "Hello\nWorld\t\"Quote\""})";
-    parser_input in {input_type::data, json};
     parser_output out;
     
-    EXPECT_NO_THROW(value::parse(in, out));
+    EXPECT_NO_THROW(value::parse(out, json));
     EXPECT_EQ(out.jroot["text"].get_str(), "Hello\nWorld\t\"Quote\"");
 }
 
@@ -118,58 +113,57 @@ TEST_F(ParserTest, ParseComments) {
         "value": 42
     })";
     
-    parser_input in {input_type::data, json};
     parser_output out;
     
-    EXPECT_NO_THROW(value::parse(in, out));
+    EXPECT_NO_THROW(value::parse(out, json));
     EXPECT_EQ(out.jroot["name"].get_str(), "test");
     EXPECT_EQ(out.jroot["value"].get_int64(), 42);
 }
 
 TEST_F(ParserTest, ParseErrors) {
-    parser_input in;
+    std::string json;
     parser_output out;
     
     // Invalid JSON should throw exceptions
-    in = {input_type::data, "{invalid}"};
-    EXPECT_THROW(value::parse(in, out), std::exception);
+    json = "{invalid}";
+    EXPECT_THROW(value::parse(out, json), std::exception);
     
-    in = {input_type::data, "[1, 2,]"};
-    EXPECT_THROW(value::parse(in, out), std::exception);
+    json = "[1, 2,]";
+    EXPECT_THROW(value::parse(out, json), std::exception);
     
-    in = {input_type::data, R"({"key": })"};
-    EXPECT_THROW(value::parse(in, out), std::exception);
+    json = R"({"key": })";
+    EXPECT_THROW(value::parse(out, json), std::exception);
     
     // Empty input should throw
-    in = {input_type::data, ""};
-    EXPECT_THROW(value::parse(in, out), std::exception);
+    json = "";
+    EXPECT_THROW(value::parse(out, json), std::exception);
     
-    in = {input_type::data, "   "};
-    EXPECT_THROW(value::parse(in, out), std::exception);
+    json = "   ";
+    EXPECT_THROW(value::parse(out, json), std::exception);
 }
 
 TEST_F(ParserTest, DuplicateKeyHandling) {
     std::string json = R"({"key": "first", "key": "second"})";
-    parser_input in {input_type::data, json};
     parser_output out;
     
-    // Accept (default)
-    in.ctrl.dupKey = parser_control::dup_key::overwrite;
-    EXPECT_NO_THROW(value::parse(in, out));
+    // Overwrite (default)
+    parser_control ctrl;
+    ctrl.dupKey = parser_control::dup_key::overwrite;
+    EXPECT_NO_THROW(value::parse(out, json, ctrl));
     EXPECT_EQ(out.jroot["key"].get_str(), "second");
     
     // Ignore
-    in.ctrl.dupKey = parser_control::dup_key::ignore;
-    EXPECT_NO_THROW(value::parse(in, out));
+    ctrl.dupKey = parser_control::dup_key::ignore;
+    EXPECT_NO_THROW(value::parse(out, json, ctrl));
     EXPECT_EQ(out.jroot["key"].get_str(), "first");
     
     // Append
-    in.ctrl.dupKey = parser_control::dup_key::append;
-    EXPECT_NO_THROW(value::parse(in, out));
+    ctrl.dupKey = parser_control::dup_key::append;
+    EXPECT_NO_THROW(value::parse(out, json, ctrl));
     EXPECT_TRUE(out.jroot["key"].is_array());
     EXPECT_EQ(out.jroot["key"].size(), 2);
     
     // Reject should throw exception
-    in.ctrl.dupKey = parser_control::dup_key::reject;
-    EXPECT_THROW(value::parse(in, out), std::exception);
+    ctrl.dupKey = parser_control::dup_key::reject;
+    EXPECT_THROW(value::parse(out, json, ctrl), std::exception);
 }

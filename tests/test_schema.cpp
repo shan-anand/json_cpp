@@ -147,11 +147,10 @@ TEST_F(SchemaTest, SchemaFromJson) {
         "required": ["name"]
     })";
     
-    parser_input in {input_type::data, schema_json};
     parser_output out;
     
     try {
-        value::parse(in, out);
+        value::parse(out, schema_json);
         schema s = schema::parse(out.jroot);
         
         EXPECT_EQ(s.title, "Person");

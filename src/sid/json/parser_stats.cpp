@@ -70,10 +70,10 @@ void parser_stats::clear()
   time_ms = 0;
 }
 
-std::string parser_stats::to_str() const
+std::string parser_stats::to_string() const
 {
   std::ostringstream out;
-  out << "data size.....: " << json::get_sep(data_size) << " bytes" << endl
+  out << "processed.....: " << json::get_sep(data_size) << " byte(s)" << endl
       << "objects.......: " << json::get_sep(objects) << endl
 //      << " (" << json::get_sep(json_gobjects_alloc) << ")" << endl
       << "arrays........: " << json::get_sep(arrays) << endl
