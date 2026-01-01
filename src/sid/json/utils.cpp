@@ -53,14 +53,11 @@ bool json::to_bool(const std::string& _str)
 
 bool json::to_bool(const std::string& _str, bool& _out, std::string* _pstrError/* = nullptr*/)
 {
-  if (_str == "true")
-    _out = true;
-  else if (_str == "false")
-    _out = false;
-  else
+  try { _out = to_bool(_str); }
+  catch(const std::exception& _e)
   {
     if (_pstrError)
-      *_pstrError = "Invalid boolean string: " + _str;
+      *_pstrError = _e.what();
     return false;
   }
   return true;
@@ -73,32 +70,25 @@ bool json::to_num(const std::string& _str, uint32_t& _out, std::string* _pstrErr
     size_t idx = 0;
     unsigned long long val = std::stoul(_str, &idx);
     if (idx != _str.length())
-    {
-      if (_pstrError)
-        *_pstrError = "Extra characters found after number: " + _str.substr(idx);
-      return false;
-    }
+      throw std::invalid_argument("Extra characters found after number: " + _str.substr(idx));
     if (val > static_cast<unsigned long long>(std::numeric_limits<uint32_t>::max()))
-    {
-      if (_pstrError)
-        *_pstrError = "Value out of range for uint32_t: " + _str;
-      return false;
-    }
+      throw std::out_of_range("Value out of range for uint32_t: " + _str);
     _out = static_cast<uint32_t>(val);
     return true;
   }
-  catch (const std::invalid_argument& e)
+  catch (const std::invalid_argument& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Invalid argument: " + std::string(e.what());
-    return false;
+    auto e = std::invalid_argument("Invalid argument: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
-  catch (const std::out_of_range& e)
+  catch (const std::out_of_range& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Out of range: " + std::string(e.what());
-    return false;
+    auto e = std::out_of_range("Out of range: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
+  return false;
 }
 
 bool json::to_num(const std::string& _str, long double& _out, std::string* _pstrError/* = nullptr*/)
@@ -108,25 +98,22 @@ bool json::to_num(const std::string& _str, long double& _out, std::string* _pstr
     size_t idx = 0;
     _out = std::stold(_str, &idx);
     if (idx != _str.length())
-    {
-      if (_pstrError)
-        *_pstrError = "Extra characters found after number: " + _str.substr(idx);
-      return false;
-    }
+      throw std::invalid_argument("Extra characters found after number: " + _str.substr(idx));
     return true;
   }
-  catch (const std::invalid_argument& e)
+  catch (const std::invalid_argument& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Invalid argument: " + std::string(e.what());
-    return false;
+    auto e = std::invalid_argument("Invalid argument: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
-  catch (const std::out_of_range& e)
+  catch (const std::out_of_range& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Out of range: " + std::string(e.what());
-    return false;
+    auto e = std::out_of_range("Out of range: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
+  return false;
 }
 
 bool json::to_num(const std::string& _str, int64_t& _out, std::string* _pstrError/* = nullptr*/)
@@ -136,25 +123,22 @@ bool json::to_num(const std::string& _str, int64_t& _out, std::string* _pstrErro
     size_t idx = 0;
     _out = std::stoll(_str, &idx);
     if (idx != _str.length())
-    {
-      if (_pstrError)
-        *_pstrError = "Extra characters found after number: " + _str.substr(idx);
-      return false;
-    }
+      throw std::invalid_argument("Extra characters found after number: " + _str.substr(idx));
     return true;
   }
-  catch (const std::invalid_argument& e)
+  catch (const std::invalid_argument& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Invalid argument: " + std::string(e.what());
-    return false;
+    auto e = std::invalid_argument("Invalid argument: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
-  catch (const std::out_of_range& e)
+  catch (const std::out_of_range& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Out of range: " + std::string(e.what());
-    return false;
+    auto e = std::out_of_range("Out of range: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
+  return false;
 }
 
 bool json::to_num(const std::string& _str, uint64_t& _out, std::string* _pstrError/* = nullptr*/)
@@ -164,25 +148,22 @@ bool json::to_num(const std::string& _str, uint64_t& _out, std::string* _pstrErr
     size_t idx = 0;
     _out = std::stoull(_str, &idx);
     if (idx != _str.length())
-    {
-      if (_pstrError)
-        *_pstrError = "Extra characters found after number: " + _str.substr(idx);
-      return false;
-    }
+      throw std::invalid_argument("Extra characters found after number: " + _str.substr(idx));
     return true;
   }
-  catch (const std::invalid_argument& e)
+  catch (const std::invalid_argument& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Invalid argument: " + std::string(e.what());
-    return false;
+    auto e = std::invalid_argument("Invalid argument: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
-  catch (const std::out_of_range& e)
+  catch (const std::out_of_range& _e)
   {
-    if (_pstrError)
-      *_pstrError = "Out of range: " + std::string(e.what());
-    return false;
+    auto e = std::out_of_range("Out of range: " + std::string(_e.what()));
+    if (!_pstrError) throw e;
+    *_pstrError = e.what();
   }
+  return false;
 }
 
 std::string json::get_sep(size_t _number)

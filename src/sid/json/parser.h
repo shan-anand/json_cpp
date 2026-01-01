@@ -212,35 +212,33 @@ struct buffer_parser : public parser<buffer_parser, buffer_parser_input, std::st
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /*
-From http://www.json.org/
-___________________________________________________________________________________________________
-|                              |                                   |                              |
-|  object                      |  string                           |  number                      |
-|      {}                      |      ""                           |      int                     |
-|      { members }             |      "chars"                      |      int frac                |
-|  members                     |  chars                            |      int exp                 |
-|      pair                    |      char                         |      int frac exp            |
-|      pair , members          |      char chars                   |  int                         |
-|  pair                        |  char                             |      digit                   |
-|      string : value          |      any-Unicode-character-       |      digit1-9 digits         |
-|  array                       |          except-"-or-\-or-        |      - digit                 |
-|      []                      |          control-character        |      - digit1-9 digits       |
-|      [ elements ]            |      \"                           |  frac                        |
-|  elements                    |      \\                           |      . digits                |
-|      value                   |      \/                           |  exp                         |
-|      value , elements        |      \b                           |      e digits                |
-|  value                       |      \f                           |  digits                      |
-|      string                  |      \n                           |      digit                   |
-|      number                  |      \r                           |      digit digits            |
-|      object                  |      \t                           |  e                           |
-|      array                   |      \u four-hex-digits           |      e                       |
-|      true                    |                                   |      e+                      |
-|      false                   |                                   |      e-                      |
-|      null                    |                                   |      E                       |
-|                              |                                   |      E+                      |
-|                              |                                   |      E-                      |
-|                              |                                   |                              |
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+RFC: https://www.rfc-editor.org/rfc/rfc8259
+Another reference: http://www.json.org/
+_____________________________________________________________________________________________________
+|                              |                                   |                                |
+|  object                      |  string                           |  number                        |
+|      {}                      |      ""                           |      minus? int frac? exp?     |
+|      { members }             |      "chars"                      |  int                           |
+|  members                     |  chars                            |      zero | digit1-9 DIGIT*    |
+|      pair                    |      char                         |  zero                          |
+|      pair , members          |      char chars                   |      0                         |
+|  pair                        |  char                             |  digit1-9                      |
+|      string : value          |      any-Unicode-character-       |      1-9                       |
+|  array                       |          except-"-or-\-or-        |  DIGIT                         |
+|      []                      |          control-character        |      0-9                       |
+|      [ elements ]            |      \"                           |  frac                          |
+|  elements                    |      \\                           |      decimal-point DIGIT+      |
+|      value                   |      \/                           |  decimal-point                 |
+|      value , elements        |      \b                           |      .                         |
+|  value                       |      \f                           |  exp                           |
+|      string                  |      \n                           |      X (minus | plus)? DIGIT+  |
+|      number                  |      \r                           |  X                             |
+|      object                  |      \t                           |      e | E                     |
+|      array                   |      \u four-hex-digits           |  minus                         |
+|      true                    |                                   |      -                         |
+|      false                   |                                   |  plus                          |
+|      null                    |                                   |      +                         |
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
 //! parse and convert to json object
@@ -632,7 +630,7 @@ void parser<Derived, parser_input, pos_type>::parse_number(value& _jnum)
     if ( ch >= '0' && ch <= '9' )
       throw std::runtime_error("Invalid digit (" + std::string(1, ch) + ") after first 0 " + loc_str());
     num.integer.digits = 0;
-    if ( !is_space() && ch != ',' && ch != chContainer )
+    if ( !is_space() && ch != ',' && ch != chContainer && ch != '.' && ch != 'e' && ch != 'E' )
       numStr += ch;
   }
   else
@@ -640,6 +638,7 @@ void parser<Derived, parser_input, pos_type>::parse_number(value& _jnum)
     while ( (ch = next()) >= '0' && ch <= '9'  )
       numStr += ch;
   }
+
   // Check whether it has fraction and populate accordingly
   if ( ch == '.' )
   {
@@ -678,7 +677,7 @@ void parser<Derived, parser_input, pos_type>::parse_number(value& _jnum)
   }
 
   const bool isNegative = num.integer.negative;
-  const bool isDouble = ( num.hasFraction || num.hasExponent );
+  bool isDouble = ( num.hasFraction || num.hasExponent );
 
   pos_type end_pos = tellg();
   skip_leading_spaces();
@@ -687,34 +686,40 @@ void parser<Derived, parser_input, pos_type>::parse_number(value& _jnum)
     throw std::runtime_error("Invalid character " + std::string(1, ch) + " Expected , or "
                          + std::string(1, chContainer) + " " + loc_str());
 
-  std::string errStr;
-  //std::string numStr = get_str(start_pos, end_pos-start_pos), errStr;
+  if ( !isDouble )
+  {
+    try
+    {
+      if ( isNegative )
+      {
+        int64_t v = 0;
+        json::to_num(numStr, /*out*/ v);
+        _jnum = v;
+      }
+      else
+      {
+        uint64_t v = 0;
+        json::to_num(numStr, /*out*/ v);
+        _jnum = v;
+      }
+    }
+    catch ( const std::exception& _e)
+    {
+      if ( typeid(_e) != typeid(std::out_of_range) )
+        throw std::runtime_error("Unable to convert (" + numStr + ") to numeric " + loc_str()
+                            + ": " + _e.what());
+      // If out of range exception is received, convert it to double
+      isDouble = true;
+    }
+  }
   if ( isDouble )
   {
+    std::string errStr;
     long double v = 0.0;
     if ( !json::to_num(numStr, /*out*/ v, &errStr) )
       throw std::runtime_error("Unable to convert (" + numStr + ") to double " + loc_str()
-                           + ": " + errStr);
+                            + ": " + errStr);
     _jnum = v;
-  }
-  else
-  {
-    if ( isNegative )
-    {
-      int64_t v = 0;
-      if ( ! json::to_num(numStr, /*out*/ v, &errStr) )
-        throw std::runtime_error("Unable to convert (" + numStr + ") to numeric " + loc_str()
-                             + ": " + errStr);
-      _jnum = v;
-    }
-    else
-    {
-      uint64_t v = 0;
-      if ( ! json::to_num(numStr, /*out*/ v, &errStr) )
-        throw std::runtime_error("Unable to convert (" + numStr + ") to numeric " + loc_str()
-                             + ": " + errStr);
-      _jnum = v;
-    }
   }
 }
 
